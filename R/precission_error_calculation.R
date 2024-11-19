@@ -3,9 +3,10 @@
 #' Calculates the arithmetic differences between duplicate measurement pairs.
 #' If the same measure have been measured more than twice, it computes the mean of the differences.
 #' The differences are divided by sqrt(2) because they arise from imprecision in both
-#' measurements, which adds quadratically, and the desired result is the precision
+#' measurement, which adds quadratically, and the desired result is the precision
 #' of one measurement.
-#' @param tb A dataframe with id (unique ID value per duplicated sample), sensor (type of sensors) and measurements (the results of the measurements) columns
+#' @param tb A dataframe with `id` (unique ID value per duplicated sample), `sensor` (type of sensors) and `measurements` (the results of the measurements) columns
+#' @param img (LOGICAL element) It determines if you wants plots or not. It is TRUE as default.
 #' @return A tibble grouped by sensor that contains a dataframe with the next three columns 1.difference between duplicates, 2.mean values of each duplicate and 3.number of samples of the duplicates (commonly there will be just 2 sample as the name duplicate says, but if there are triplicates or more, the program will work as well is why it is important to know the n of samples) and RMS, MAD precision values and the number of samples that have been used to calculate these values (n_precision).
 #' @examples
 #' tb <- data.frame(id = c("m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"),
@@ -14,20 +15,7 @@
 #' tb_precision <- measure_precision(tb);
 #' @export
 
-measure_precision <- function(tb){
-
-  defined <- ls()
-  rlog::log_trace("Starting Measure Precission calculation")
-  passed <- names(as.list(match.call())[-1])
-
-  if (!defined %in% passed) {
-    cli::cli_h1("Measurement's Precission calculation Outputs")
-    cli::cli_li("{.strong Measurement difference Plot:} Differences between the sensor duplicate measurements are visualized in absolute and relative values (difference / mean)")
-    cli::cli_li("{.strong Precission calculation:} (For patients with duplicate values, result = error in %) The relative differences of the duplicates are used to calculate the RMS and MAD precission for each of the sensors.")
-    cli::cli_h1("Measurement's Precission calculation Inputs")
-    cli::cli_li("{.strong Dataframe:} Dataframe with id (unique id to identify duplicates), sensor (the type of sensor used to measure) and measurement (measurement results, such as the concentration values of CO2 in the air) columns")
-    return(invisible())
-  }
+measure_precision <- function(tb, img = TRUE){
 
   required_columns <- c("id", "sensor", "measurement")
 
@@ -76,18 +64,20 @@ measure_precision <- function(tb){
   # Report how many NA values and how many non-NA values there are
 
   # Plot the absolute and relative difference -------------------
-  a <- ggplot(tb_diff, aes(x=mn, y=diff))+
-    geom_point(aes(colour = sensor, shape = sensor))+
-    ggtitle("Absolute difference")+
-    labs(x = "Quantity mean", y = "Quantity diff")
+  if (img) {
+    a <- ggplot(tb_diff, aes(x=mn, y=diff))+
+      geom_point(aes(colour = sensor, shape = sensor))+
+      ggtitle("Absolute difference")+
+      labs(x = "Quantity mean", y = "Quantity diff")
 
-  b <- ggplot(tb_diff, aes(x=mn, y=diff/mn))+
-    geom_point(aes(colour = sensor, shape = sensor))+
-    # ylim(c(0, 1))+
-    ggtitle("Relative difference")+
-    labs(x = "Quantity mean", y = "Relative Quantity diference")
+    b <- ggplot(tb_diff, aes(x=mn, y=diff/mn))+
+      geom_point(aes(colour = sensor, shape = sensor))+
+      # ylim(c(0, 1))+
+      ggtitle("Relative difference")+
+      labs(x = "Quantity mean", y = "Relative Quantity diference")
 
-  grid.arrange(a , b,  ncol=2, nrow=1)
+    grid.arrange(a , b,  ncol=2, nrow=1)
+  }
 
   # PRECISSION CALCULOUS----------------------------------------
 
@@ -128,6 +118,22 @@ measure_precision <- function(tb){
 #' @export
 
 error_propagation <- function (tb, fun){
+
+  required_columns <- c("sensor", "err", "data")
+
+  # Check if required columns are present in the dataframe
+  missing_columns <- setdiff(required_columns, colnames(tb))
+
+  # If there are missing columns, show a message
+  if (length(missing_columns) > 0) {
+    missing_msg <- paste("The following required columns are missing:", paste(missing_columns, collapse = ", "))
+    stop(missing_msg) # Stop execution with an error message
+  }
+
+  required_columns <- c("id", "mn", "n")
+
+  # Check if required columns are present in the dataframe
+  missing_columns <- setdiff(required_columns, colnames(tb$data))
 
   # save the variable names from the function
   vars <- all.vars(fun)

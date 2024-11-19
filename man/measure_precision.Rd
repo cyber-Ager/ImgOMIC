@@ -4,10 +4,12 @@
 \alias{measure_precision}
 \title{Measurement Precision calculation}
 \usage{
-measure_precision(tb)
+measure_precision(tb, img = TRUE)
 }
 \arguments{
-\item{tb}{A dataframe with id (unique ID value per duplicated sample), sensor (type of sensors) and measurements (the results of the measurements) columns}
+\item{tb}{A dataframe with \code{id} (unique ID value per duplicated sample), \code{sensor} (type of sensors) and \code{measurements} (the results of the measurements) columns}
+
+\item{img}{(LOGICAL element) It determines if you wants plots or not. It is TRUE as default.}
 }
 \value{
 A tibble grouped by sensor that contains a dataframe with the next three columns 1.difference between duplicates, 2.mean values of each duplicate and 3.number of samples of the duplicates (commonly there will be just 2 sample as the name duplicate says, but if there are triplicates or more, the program will work as well is why it is important to know the n of samples) and RMS, MAD precision values and the number of samples that have been used to calculate these values (n_precision).
@@ -16,7 +18,7 @@ A tibble grouped by sensor that contains a dataframe with the next three columns
 Calculates the arithmetic differences between duplicate measurement pairs.
 If the same measure have been measured more than twice, it computes the mean of the differences.
 The differences are divided by sqrt(2) because they arise from imprecision in both
-measurements, which adds quadratically, and the desired result is the precision
+measurement, which adds quadratically, and the desired result is the precision
 of one measurement.
 }
 \examples{
