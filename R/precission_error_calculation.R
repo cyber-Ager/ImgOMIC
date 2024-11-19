@@ -33,11 +33,11 @@ measure_precision <- function(tb, img = TRUE){
     stop(missing_msg) # Stop execution with an error message
   }
 
-  require(dplyr)
-  require(purrr)
-  require(tidyr)
-  require(ggplot2)
-  require(gridExtra)
+  # Install the required packages
+  list.of.packages <- c("ggplot2", "dplyr", "purrr", "tidyr")
+  new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+  if(length(new.packages)) install.packages(new.packages)
+
 
   # FUNCTION STARTS HERE-------------------------------------------------------
 
@@ -65,6 +65,8 @@ measure_precision <- function(tb, img = TRUE){
 
   # Plot the absolute and relative difference -------------------
   if (img) {
+    library(ggplot2)
+
     a <- ggplot(tb_diff, aes(x=mn, y=diff))+
       geom_point(aes(colour = sensor, shape = sensor))+
       ggtitle("Absolute difference")+
@@ -133,16 +135,36 @@ error_propagation <- function (tb, fun){
   required_columns <- c("id", "mn", "n")
 
   # Check if required columns are present in the dataframe
-  missing_columns <- setdiff(required_columns, colnames(tb$data))
+  missing_columns <- setdiff(required_columns, colnames(tb$data[[1]]))
+
+  # If there are missing columns in the data dataframe, show a message
+  if (length(missing_columns) > 0) {
+    missing_msg <- paste("The following required columns are missing:", paste(missing_columns, collapse = ", "))
+    stop(missing_msg) # Stop execution with an error message
+  }
+
+  # Install the required packages
+  list.of.packages <- c("dplyr", "purrr", "tidyr", "tibble")
+  new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+  if(length(new.packages)) install.packages(new.packages)
+
+  # FUNCTION STARTS HERE-----------------------------------------------------
 
   # save the variable names from the function
   vars <- all.vars(fun)
   # Sort the var names ascending alphabetically
   vars <- sort(vars, decreasing = FALSE)
 
+  # Check if there is some variable in the function that is not defined in the tb
+  missing_vars <- setdiff(vars, tb$sensor)
+  if (length(missing_vars) > 0) {
+    missing_msg <- paste("The following variables defined in the equation are not shown in the input tibble:", paste(missing_columns, collapse = ", "))
+    stop(missing_msg) # Stop execution with an error message
+  }
+
+  # Simplify the tibble to save the mn value of each sensor divided in columns and ordered in rows by ID.
   df_measure <- tb %>%
     dplyr::select(sensor, data)%>%
-    # Remove diff column from the data dataframe
     dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::select(id, mn))) %>%
     tidyr::unnest(data) %>%
     tidyr::pivot_wider(names_from = sensor, values_from = mn)%>%
@@ -154,10 +176,9 @@ error_propagation <- function (tb, fun){
   tb$nsensor <- paste0("n_", tb$sensor)
 
 
-  # Save the n_miRNA value
+  # Save the n_sensor value in the same way as the mn was saved before
   df_n <- tb%>%
     dplyr::select(nsensor, data)%>%
-    # Remove diff and n column from the data dataframe
     dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::select(id, n))) %>%
     tidyr::unnest(data) %>%
     tidyr::pivot_wider(names_from = nsensor, values_from = n)%>%
@@ -167,6 +188,7 @@ error_propagation <- function (tb, fun){
   # Merge both dataframes
   df_measure <- cbind(df_measure, df_n)
 
+  # Define the partial derivative of fun respect each sensor
   derivatives <- lapply(vars, function(var) D(fun, var))
 
   # Ensure that the position of the sensors in the tibble is the same as in the "vars"
@@ -208,7 +230,7 @@ error_propagation <- function (tb, fun){
   results <- do.call(mapply, c(FUN = apply_equation, as.list(df_measure)))
   rownames(results) <- c("measure", "error")
 
-  # Result have 3 rows, one with the mean value and then the RMS and MAD values.
+  # Result have 2 rows containing the result of the function and the propagated error
   # The column names are the IDs
 
   # Reshape the results
