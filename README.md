@@ -27,3 +27,9 @@ $$
 $$
 \text{MAD Precision} = \sqrt{\frac{\pi}{2}}\frac{1}{n}\sum_{i = 1}^{n}|D_i|\times100\%
 $$
+
+The function `measure_precision` calculates the precision in relative values, as in the most of the microarray or similar techniques the absolute value of the error is proportional to the absolute value of the presence of the particle. Because of this reason the reults are given in %.
+
+#### Example:
+
+As an inout is neccessary to prepare
