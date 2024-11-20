@@ -14,4 +14,16 @@ This function is based on the 2009 article _"Estimating Precision Using Duplicat
 
 The aim of this function is to quantify the precision of each of the measuring "sensors" used to detect the presence of the particle of interest. For example, in the case of miRNA detection by qPCR in a microarray, the "sensor" would correspond to the different miRNAs. Even if the same sample is introduced into each well, each well will emit fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (in this case, the stem-loop primers) differ for each miRNA. In this context, the variability of the measurements for each miRNA may vary, but this variability can be assessed using duplicates.
 
-The function `measure_precision` measures the precission based on Root Mean Square (RMS) and Mean Absolute Difference (MAD).
+The function `measure_precision` measures the precission based on Root Mean Square (RMS) and Mean Absolute Difference (MAD). The equation used to measure this precission are the next one: 
+
+$$
+D_1 = \frac{(C_{i1}-C_{i2})/\sqrt{2}}{\bar{C_{i}}}
+$$
+
+$$
+\text{RMS Precision} = \sqrt{\frac{1}{n}\sum_{i = 1}^{n}D_i^2}\times100\%
+$$
+
+$$
+\text{MAD Precision} = \sqrt{\frac{\pi}{2}}\frac{1}{n}\sum_{i = 1}^{n}|D_i|\times100\%
+$$
