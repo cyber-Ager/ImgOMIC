@@ -10,4 +10,8 @@ In most cases when working with microarrays for the quantificatyion of the prese
 
 ### Measure precision
 
-This function is based on the 2009 article [_"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White**] (https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032).
+This function is based on the 2009 article _"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White** (https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032). 
+
+The aim of this function is to quantify the precision of each of the measuring "sensors" used to detect the presence of the particle of interest. For example, in the case of miRNA detection by qPCR in a microarray, the "sensor" would correspond to the different miRNAs. Even if the same sample is introduced into each well, each well will emit fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (in this case, the stem-loop primers) differ for each miRNA. In this context, the variability of the measurements for each miRNA may vary, but this variability can be assessed using duplicates.
+
+The function `measure_precision` measures the precission based on Root Mean Square (RMS) and Mean Absolute Difference (MAD).
