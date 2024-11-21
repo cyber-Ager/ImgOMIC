@@ -7,7 +7,7 @@
 measure_precision(tb, img = TRUE)
 }
 \arguments{
-\item{tb}{A dataframe with \code{id} (unique ID value per duplicated sample), \code{sensor} (type of sensors) and \code{measurements} (the results of the measurements) columns}
+\item{tb}{A dataframe with \code{ID} (unique ID value per duplicated sample), \code{sensor} (type of sensors) and \code{measurements} (the results of the measurements) columns}
 
 \item{img}{(LOGICAL element) It determines if you wants plots or not. It is TRUE as default.}
 }
@@ -22,7 +22,7 @@ measurement, which adds quadratically, and the desired result is the precision
 of one measurement.
 }
 \examples{
-tb <- data.frame(id = c("m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"),
+tb <- data.frame(ID = c("m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"),
                  sensor = c("s1", "s1", "s2", "s2", "s1", "s1", "s2", "s2"),
                  measurement = c(10, 9, 2, 1, 15, 17, 4, 3))
 tb_precision <- measure_precision(tb);

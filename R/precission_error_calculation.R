@@ -5,11 +5,11 @@
 #' The differences are divided by sqrt(2) because they arise from imprecision in both
 #' measurement, which adds quadratically, and the desired result is the precision
 #' of one measurement.
-#' @param tb A dataframe with `id` (unique ID value per duplicated sample), `sensor` (type of sensors) and `measurements` (the results of the measurements) columns
+#' @param tb A dataframe with `ID` (unique ID value per duplicated sample), `sensor` (type of sensors) and `measurements` (the results of the measurements) columns
 #' @param img (LOGICAL element) It determines if you wants plots or not. It is TRUE as default.
 #' @return A tibble grouped by sensor that contains a dataframe with the next three columns 1.difference between duplicates, 2.mean values of each duplicate and 3.number of samples of the duplicates (commonly there will be just 2 sample as the name duplicate says, but if there are triplicates or more, the program will work as well is why it is important to know the n of samples) and RMS, MAD precision values and the number of samples that have been used to calculate these values (n_precision).
 #' @examples
-#' tb <- data.frame(id = c("m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"),
+#' tb <- data.frame(ID = c("m1", "m1", "m1", "m1", "m2", "m2", "m2", "m2"),
 #'                  sensor = c("s1", "s1", "s2", "s2", "s1", "s1", "s2", "s2"),
 #'                  measurement = c(10, 9, 2, 1, 15, 17, 4, 3))
 #' tb_precision <- measure_precision(tb);
@@ -17,7 +17,7 @@
 
 measure_precision <- function(tb, img = TRUE){
 
-  required_columns <- c("id", "sensor", "measurement")
+  required_columns <- c("ID", "sensor", "measurement")
 
   # Check if required columns are present in the dataframe
   missing_columns <- setdiff(required_columns, colnames(tb))
@@ -28,8 +28,8 @@ measure_precision <- function(tb, img = TRUE){
     stop(missing_msg) # Stop execution with an error message
   }
 
-  if (sum(is.na(tb$id)) > 0) {
-    missing_msg <- paste("Your dataframe have", sum(is.na(tb$id)), "NAs in id column")
+  if (sum(is.na(tb$ID)) > 0) {
+    missing_msg <- paste("Your dataframe have", sum(is.na(tb$ID)), "NAs in ID column")
     stop(missing_msg) # Stop execution with an error message
   }
 
@@ -51,7 +51,7 @@ measure_precision <- function(tb, img = TRUE){
 
   # Calculate the difference of each sensor measurement
   tb_diff <- tb %>%
-    dplyr::group_by(id, sensor) %>%
+    dplyr::group_by(ID, sensor) %>%
     dplyr::summarise(
       diff = mean_pairwise_diff(measurement)[1],
       mn = mean(measurement),
@@ -105,14 +105,14 @@ measure_precision <- function(tb, img = TRUE){
 #' It assumes that the errors in each input measurement are small and do not depend on each other.
 #'
 #' @param tb A tibble containing the measurements to be used in the error propagation calculation. The tibble should include
-#' columns for `sensor` (the type of sensor), `err` (error of the sensor in %) and `data` (dataframe with measurement values by sensor with columns for `id` (sample unique id), `mn` (mean of the duplicated measurements) and `n` (number of identical sample, in case of duplicates 2 but sometimes some of them have more than 2 copies)).
+#' columns for `sensor` (the type of sensor), `err` (error of the sensor in %) and `data` (dataframe with measurement values by sensor with columns for `ID` (sample unique ID), `mn` (mean of the duplicated measurements) and `n` (number of identical sample, in case of duplicates 2 but sometimes some of them have more than 2 copies)).
 #' This parameter is the output of the function `measure_precision` (it just need to change the name of the column of the error that wanted to be used to `err`).
 #' @param fun An R expression representing the formula for calculating a new measurement based on input variables (sensor data).
 #' This formula should specify the relationship between measurements in `tb` and the desired output measurement.
 #' @return A dataframe with calculated measurement values (`measure`) and their propagated errors (`error`) for each measurement ID.
 #' @examples
 #' # Example dataframe
-#' tb <- data.frame(sensor = c("s1", "s2"), data = list(data.frame(id = c("m1", "m2"), mn = c(10, 15), err = c(0.5, 0.6), n = c(2, 2))))
+#' tb <- data.frame(sensor = c("s1", "s2"), data = list(data.frame(ID = c("m1", "m2"), mn = c(10, 15), err = c(0.5, 0.6), n = c(2, 2))))
 #' # Example formula
 #' fun <- expression(s1 + s2)
 #' # Calculate propagated errors
@@ -132,7 +132,7 @@ error_propagation <- function (tb, fun){
     stop(missing_msg) # Stop execution with an error message
   }
 
-  required_columns <- c("id", "mn", "n")
+  required_columns <- c("ID", "mn", "n")
 
   # Check if required columns are present in the dataframe
   missing_columns <- setdiff(required_columns, colnames(tb$data[[1]]))
@@ -165,10 +165,10 @@ error_propagation <- function (tb, fun){
   # Simplify the tibble to save the mn value of each sensor divided in columns and ordered in rows by ID.
   df_measure <- tb %>%
     dplyr::select(sensor, data)%>%
-    dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::select(id, mn))) %>%
+    dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::select(ID, mn))) %>%
     tidyr::unnest(data) %>%
     tidyr::pivot_wider(names_from = sensor, values_from = mn)%>%
-    dplyr::arrange(id)
+    dplyr::arrange(ID)
 
   # Add the variable nsensor to later save the information of the counts used for
   # the calculation of the mean value (This will be important in order to
@@ -179,11 +179,11 @@ error_propagation <- function (tb, fun){
   # Save the n_sensor value in the same way as the mn was saved before
   df_n <- tb%>%
     dplyr::select(nsensor, data)%>%
-    dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::select(id, n))) %>%
+    dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::select(ID, n))) %>%
     tidyr::unnest(data) %>%
     tidyr::pivot_wider(names_from = nsensor, values_from = n)%>%
-    dplyr::arrange(id)%>%
-    dplyr::select(-id)
+    dplyr::arrange(ID)%>%
+    dplyr::select(-ID)
 
   # Merge both dataframes
   df_measure <- cbind(df_measure, df_n)

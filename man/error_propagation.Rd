@@ -8,7 +8,7 @@ error_propagation(tb, fun)
 }
 \arguments{
 \item{tb}{A tibble containing the measurements to be used in the error propagation calculation. The tibble should include
-columns for \code{sensor} (the type of sensor), \code{err} (error of the sensor in \%) and \code{data} (dataframe with measurement values by sensor with columns for \code{id} (sample unique id), \code{mn} (mean of the duplicated measurements) and \code{n} (number of identical sample, in case of duplicates 2 but sometimes some of them have more than 2 copies)).
+columns for \code{sensor} (the type of sensor), \code{err} (error of the sensor in \%) and \code{data} (dataframe with measurement values by sensor with columns for \code{ID} (sample unique ID), \code{mn} (mean of the duplicated measurements) and \code{n} (number of identical sample, in case of duplicates 2 but sometimes some of them have more than 2 copies)).
 This parameter is the output of the function \code{measure_precision} (it just need to change the name of the column of the error that wanted to be used to \code{err}).}
 
 \item{fun}{An R expression representing the formula for calculating a new measurement based on input variables (sensor data).
@@ -24,7 +24,7 @@ It assumes that the errors in each input measurement are small and do not depend
 }
 \examples{
 # Example dataframe
-tb <- data.frame(sensor = c("s1", "s2"), data = list(data.frame(id = c("m1", "m2"), mn = c(10, 15), err = c(0.5, 0.6), n = c(2, 2))))
+tb <- data.frame(sensor = c("s1", "s2"), data = list(data.frame(ID = c("m1", "m2"), mn = c(10, 15), err = c(0.5, 0.6), n = c(2, 2))))
 # Example formula
 fun <- expression(s1 + s2)
 # Calculate propagated errors
