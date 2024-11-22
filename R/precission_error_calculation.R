@@ -172,6 +172,20 @@ error_propagation <- function (tb, fun){
     tidyr::pivot_wider(names_from = sensor, values_from = mn)%>%
     dplyr::arrange(ID)
 
+  # Delete the rows where there was an NA value and inform about it
+  df_measure2 <- df_measure %>%
+    dplyr::filter(if_all(everything(), ~ !is.na(.)))
+
+  df_dif <- length(df_measure$ID) - length(df_measure2$ID)
+
+  if (df_dif > 0) {
+
+    message(df_dif, "samples have been excluded from the calulation due to missing values in sensor data.")
+
+    df_measure <- df_measure2
+
+  }
+
   # Add the variable nsensor to later save the information of the counts used for
   # the calculation of the mean value (This will be important in order to
   # calculate the real variability of that measurement)
@@ -185,7 +199,9 @@ error_propagation <- function (tb, fun){
     tidyr::unnest(data) %>%
     tidyr::pivot_wider(names_from = nsensor, values_from = n)%>%
     dplyr::arrange(ID)%>%
+    dplyr::filter(if_all(everything(), ~ !is.na(.)))%>%
     dplyr::select(-ID)
+
 
   # Merge both dataframes
   df_measure <- cbind(df_measure, df_n)

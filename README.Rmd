@@ -1,24 +1,23 @@
 ---
 title: "ImgOMIC"
-output: html_document
-date: "2024-11-22"
+output: github_document
 ---
 
 [EU] R-ko pakete hau nire doktoretzako proiektuan erabiliko ditudan funtzioak gordetzeko sortua da. Proiektu honek irudietatik ateratako ezaugarriak zientzia omikoekin (genomika, trankriptomika, proteomika etab.) aztertzea du helburu, hortik ImgOMIC izena.
 
-[EN] This package was created with the intention of recopilating the neccessary functions to analyse medical imaging phenotypes with OMIC data. The package contains the neccessary function to perform these analyses from the data preprocessing to associative model building.
+[EN] This package was created to compile the necessary functions for analyzing medical imaging phenotypes alongside OMIC data. It provides functions for the complete analysis workflow, from data preprocessing to building associative models.
 
 # Precision Calculation
 
-In most cases when working with microarrays for the quantificatyion of the presence of miRNA, RNA or proteins duplicates are used. The duplicates ensure that we reduce the variability of the measure by computing the mean between the measures. But this also allows to quantify that variability and define the precision of the machine that we are using. Quantifying the precision allows us to know the variability of each measurement and it is important to take it in to account in order to ensure that the associations that we are identifying are real.
+In most cases, when working with microarrays for the quantification of miRNA, RNA, or protein presence, duplicates are used. These duplicates help reduce measurement variability by averaging the two results. Additionally, they allow for quantifying variability and determining the precision of the measuring equipment. Measuring precision is crucial to understanding the variability of measurements, ensuring that the associations we identify are robust and reliable.
 
 ## Measure precision
 
 This function is based on the 2009 article _"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White** (https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032). 
 
-The aim of this function is to quantify the precision of each of the measuring "sensors" used to detect the presence of the particle of interest. For example, in the case of miRNA detection by qPCR in a microarray, the "sensor" would correspond to the different miRNAs. Even if the same sample is introduced into each well, each well will emit fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (in this case, the stem-loop primers) differ for each miRNA. In this context, the variability of the measurements for each miRNA may vary, but this variability can be assessed using duplicates.
+The function's goal is to quantify the precision of each "sensor" used to detect the presence of a given particle. For instance, in miRNA detection using qPCR in a microarray, the "sensor" corresponds to the different miRNAs. Even if the same sample is introduced into every well, each well emits fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (e.g., stem-loop primers) differ for each miRNA. The measurement variability for each miRNA can differ, but this variability is assessable using duplicates.
 
-The function `measure_precision` measures the precision based on Root Mean Square (RMS) and Mean Absolute Difference (MAD). The equation used to measure this precision are the next one: 
+The `measure_precision` function computes precision using the Root Mean Square (RMS) and Mean Absolute Difference (MAD). The equations used are as follows: 
 
 $$
 D_1 = \frac{(C_{i1}-C_{i2})/\sqrt{2}}{\bar{C_{i}}}
@@ -32,13 +31,13 @@ $$
 \text{MAD Precision} = \sqrt{\frac{\pi}{2}}\frac{1}{n}\sum_{i = 1}^{n}|D_i|\times100\%
 $$
 
-The function `measure_precision` calculates the precision in relative values, as in the most of the microarray or similar techniques the absolute value of the error is proportional to the absolute value of the presence of the particle. Because of this reason the reults are given in %.
+The function calculates precision as relative values because, in most microarray or similar techniques, the absolute error is proportional to the particle's absolute presence. For this reason, results are expressed as percentages (%).
 
 ### Example:
 
-As an input is necessary to prepare the dataset with the next characteristics: 
+The input dataset should have the following structure: 
 
-A dataframe with `ID` (unique ID value per duplicated sample), `sensor` (type of sensors) and `measurements` (the results of the measurements) columns. This can be clearly seen in the next table.
+A dataframe with columns: `ID` (unique ID for each duplicate sample), `sensor` (type of sensor), and `measurements` (measurement results). The structure is illustrated below:
 
 ```{r}
 #| label: tbl-input_table
@@ -51,31 +50,87 @@ df_test <- read.table("README_data/Tutorial_table.csv", header = TRUE, sep = ","
 knitr::kable(head(df_test))
 ```
 
-Once the data is correctly loaded the function can be used. In the default mode the function will plot the graphics with 
+Once the data is properly loaded, the function can be applied. By default, it generates graphical outputs (in the case we don't wnat them `img`= FALSE):
 
 ```{r}
 tb_output <- ImgOMIC::measure_precision(df_test)
 ```
-In these plots we can see the absolute difference between the duplicates of each type of sensor / particle. It is useful to analyze the distribution of the variability of the measurements and understand better the precision values.
+These plots display the absolute differences between duplicates for each sensor or particle type. They help analyze the distribution of measurement variability and better understand precision values.
+
 ```{r}
 library(dplyr)
 colnames(tb_output)
 ```
 
-The output table has the next column names: sensor, data, RMS, MAD and n_precision.
+The output table includes the following columns: sensor, data, RMS, MAD and n_precision.
 
 ```{r}
 knitr::kable(tb_output%>%dplyr::select(-data))
 ```
-The RMS and the MAD columns contain the precision of each of the sensors calculated with different techniques. In both of the cases the result is given in percentages (%), and represents the variability or the uncertainty that a single measure have. In this case we can see that the sensor `s1`have a precision between 9-13%, which means that when we get a measurement with this sensor the real value will be in a range oif +-13% of the real value. As it can be seen the precision will be better when the number is lower.
+The `RMS` and `MAD` columns represent the precision of each sensor, calculated using different techniques. Both values are expressed as percentages (%) and represent the variability or uncertainty of a single measurement. For example, sensor s1 has a precision of 9-13%, meaning that any measurement with this sensor will likely have a real value within ±13% of the measured value. Lower values indicate better precision.
 
-This function calculates two type of precisions, since they have a different behaviour respect the input data and we can desire one of the other depending the use case. The RMS is really sensitive to the outliers for example (as it can be clearly seen in the `s2` sensor case) which can be more usefull when we wanted to really punish the fact of having outliers. In the most common cases the MAD method could represent better the global behaviour of the data, as it is less sensitive to outliers.
+The function calculates two types of precision due to their differing sensitivity to input data characteristics. Depending on the use case, one might prefer one method over the other:
 
-The `n_precision`
+  - RMS Precision is more sensitive to outliers (e.g., as seen with sensor s2) and is useful when penalizing outliers is important.
+  - MAD Precision is less sensitive to outliers, making it a better representation of overall data behavior in most cases.
+
+The `n_precision` column indicates the number of samples used to compute the precision. Finally, the `data` column contains a tibble with the measurements used for calculating precision values for each case:
 
 ```{r}
 
 knitr::kable(head(tb_output$data[[1]]))
 
 ```
+Each of the rows of `data` dataset represent one sample. The `diff` value represent the difference between the sample duplicates, ̀`mn` column determines the average value between the duplicates, and the `n` column the number of copies that have been use to calculate the values (2 in the case of duplicates, 3 in the case of triplicates etc.)
 
+## Error propagation
+
+The error propagation function complements the previous precision calculation function. In some cases, the final value used in the analysis is derived from a combination of measurements obtained from different sensors. The `error_propagation` function calculates both the final value and its associated error based on the provided precision values. 
+
+The error propagation is computed using the following formula:
+
+$$
+\epsilon_{f_{norm}} = \sqrt{\sum_{i = 1}^{n}\left( \frac{\partial f}{\partial s_{i}} \cdot \epsilon_{s_{i}} \right)^2}
+$$
+Here, the influence of each sensor measurement on the final result is determined by calculating the partial derivative of the normalization formula with respect to that specific sensor. This helps us assess how a unitary change in a variable would impact the final result. Each partial derivative is then multiplied by the error value of that measurement. The overall error is derived from the Euclidean norm of these independent contributions, calculated as the root of the sum of squares of individual error contributions.
+
+### Example:
+
+For this function, it is necessary to define:
+
+  - The expression used to calculate the final measure (`fun`), and
+  - The table containing the data used for the calculation (`tb`).
+
+For example, suppose the desired final measure is computed using the following equation:
+
+$$
+f_{norm} = \frac{s_{1}}{s_{2}}
+$$
+
+In this case, `fun`should be defined as follows:
+
+```{r}
+fun <- expression(s1/s2)
+```
+
+It is important to ensure that the variable names in the function match the `sensor` names in the input table.
+
+For the data table, we can use the output from the `measure_precision` function, with one modification: renaming the desired precision column (`RMS` or `MAD`) to `err`. For instance:
+
+```{r}
+tb_input <- tb_output 
+tb_input$err <- tb_input$MAD
+```
+
+Here, we assign the `MAD` precision values to the `err` column. Once this is done, the function can be applied:
+
+```{r}
+norm_val <- ImgOMIC::error_propagation(tb_input, fun)
+
+knitr::kable(head(norm_val))
+```
+
+The output is a dataframe containing two columns:
+
+  - `measure`: The desired measurement value, calculated from the defined expression.
+  - `error`: The absolute value of the propagated error associated with the `measure` value.
