@@ -175,9 +175,7 @@ values.
 
 The error propagation is computed using the following formula:
 
-$$
-\epsilon_{f_{norm}} = \sqrt{\sum_{i = 1}^{n}\left( \frac{\partial f}{\partial s_{i}} \cdot \epsilon_{s_{i}} \right)^2}
-$$
+$$\epsilon_{f_{norm}} = \sqrt{\sum_{i = 1}^{n}\left( \frac{\partial f}{\partial s_{i}} \cdot \epsilon_{s_{i}} \right)^2}$$
 
 Here, the influence of each sensor measurement on the final result is
 determined by calculating the partial derivative of the normalization
