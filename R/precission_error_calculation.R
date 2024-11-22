@@ -82,7 +82,7 @@ measure_precision <- function(tb, img = TRUE){
     gridExtra::grid.arrange(a , b,  ncol=2, nrow=1)
   }
 
-  # PRECISSION CALCULOUS----------------------------------------
+  # PRECISION CALCULOUS----------------------------------------
 
   # Create a tibble with the separate dataframes of the different miRNAs
   tb_diff2 <- tb_diff%>%
@@ -94,7 +94,7 @@ measure_precision <- function(tb, img = TRUE){
   tb_diff2 <- tb_diff2 %>%
     dplyr::mutate(RMS = purrr::map(data,RMS_precision))%>%
     dplyr::mutate(MAD = purrr::map(data,MAD_precision))%>%
-    dplyr::mutate(n_precission = purrr::map(data, function(x) nrow(x)))
+    dplyr::mutate(n_precision = purrr::map(data, function(x) nrow(x)))
 
   return(tb_diff2)
 }

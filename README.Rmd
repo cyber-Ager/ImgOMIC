@@ -18,7 +18,7 @@ This function is based on the 2009 article _"Estimating Precision Using Duplicat
 
 The aim of this function is to quantify the precision of each of the measuring "sensors" used to detect the presence of the particle of interest. For example, in the case of miRNA detection by qPCR in a microarray, the "sensor" would correspond to the different miRNAs. Even if the same sample is introduced into each well, each well will emit fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (in this case, the stem-loop primers) differ for each miRNA. In this context, the variability of the measurements for each miRNA may vary, but this variability can be assessed using duplicates.
 
-The function `measure_precision` measures the precission based on Root Mean Square (RMS) and Mean Absolute Difference (MAD). The equation used to measure this precission are the next one: 
+The function `measure_precision` measures the precision based on Root Mean Square (RMS) and Mean Absolute Difference (MAD). The equation used to measure this precision are the next one: 
 
 $$
 D_1 = \frac{(C_{i1}-C_{i2})/\sqrt{2}}{\bar{C_{i}}}
@@ -55,5 +55,27 @@ Once the data is correctly loaded the function can be used. In the default mode 
 
 ```{r}
 tb_output <- ImgOMIC::measure_precision(df_test)
+```
+In these plots we can see the absolute difference between the duplicates of each type of sensor / particle. It is useful to analyze the distribution of the variability of the measurements and understand better the precision values.
+```{r}
+library(dplyr)
+colnames(tb_output)
+```
+
+The output table has the next column names: sensor, data, RMS, MAD and n_precision.
+
+```{r}
+knitr::kable(tb_output%>%dplyr::select(-data))
+```
+The RMS and the MAD columns contain the precision of each of the sensors calculated with different techniques. In both of the cases the result is given in percentages (%), and represents the variability or the uncertainty that a single measure have. In this case we can see that the sensor `s1`have a precision between 9-13%, which means that when we get a measurement with this sensor the real value will be in a range oif +-13% of the real value. As it can be seen the precision will be better when the number is lower.
+
+This function calculates two type of precisions, since they have a different behaviour respect the input data and we can desire one of the other depending the use case. The RMS is really sensitive to the outliers for example (as it can be clearly seen in the `s2` sensor case) which can be more usefull when we wanted to really punish the fact of having outliers. In the most common cases the MAD method could represent better the global behaviour of the data, as it is less sensitive to outliers.
+
+The `n_precision`
+
+```{r}
+
+knitr::kable(head(tb_output$data[[1]]))
+
 ```
 
