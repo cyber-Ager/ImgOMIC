@@ -34,7 +34,7 @@ measure_precision <- function(tb, img = TRUE){
   }
 
   # Install the required packages
-  list.of.packages <- c("ggplot2", "dplyr", "purrr", "tidyr")
+  list.of.packages <- c("ggplot2", "dplyr", "purrr", "tidyr", "gridExtra")
   new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
   if(length(new.packages)) install.packages(new.packages)
 
@@ -79,7 +79,7 @@ measure_precision <- function(tb, img = TRUE){
       ggtitle("Relative difference")+
       labs(x = "Quantity mean", y = "Relative Quantity diference")
 
-    grid.arrange(a , b,  ncol=2, nrow=1)
+    gridExtra::grid.arrange(a , b,  ncol=2, nrow=1)
   }
 
   # PRECISSION CALCULOUS----------------------------------------

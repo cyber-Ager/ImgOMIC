@@ -51,3 +51,9 @@ df_test <- read.table("README_data/Tutorial_table.csv", header = TRUE, sep = ","
 knitr::kable(head(df_test))
 ```
 
+Once the data is correctly loaded the function can be used. In the default mode the function will plot the graphics with 
+
+```{r}
+tb_output <- ImgOMIC::measure_precision(df_test)
+```
+
