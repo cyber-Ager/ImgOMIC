@@ -11,7 +11,7 @@ analyzing medical imaging phenotypes alongside OMIC data. It provides
 functions for the complete analysis workflow, from data preprocessing to
 building associative models.
 
-# Precision Calculation
+## Precision Calculation
 
 In most cases, when working with microarrays for the quantification of
 miRNA, RNA, or protein presence, duplicates are used. These duplicates
@@ -21,7 +21,7 @@ precision of the measuring equipment. Measuring precision is crucial to
 understanding the variability of measurements, ensuring that the
 associations we identify are robust and reliable.
 
-## Measure precision
+### Measure precision
 
 This function is based on the 2009 article *“Estimating Precision Using
 Duplicate Measurements”* by **Nicole Pauly Hyslop and Warren H. White**
@@ -57,7 +57,7 @@ microarray or similar techniques, the absolute error is proportional to
 the particle’s absolute presence. For this reason, results are expressed
 as percentages (%).
 
-### Example:
+#### Example:
 
 The input dataset should have the following structure:
 
@@ -164,7 +164,7 @@ column determines the average value between the duplicates, and the `n`
 column the number of copies that have been use to calculate the values
 (2 in the case of duplicates, 3 in the case of triplicates etc.)
 
-## Error propagation
+### Error propagation
 
 The error propagation function complements the previous precision
 calculation function. In some cases, the final value used in the
@@ -186,7 +186,7 @@ The overall error is derived from the Euclidean norm of these
 independent contributions, calculated as the root of the sum of squares
 of individual error contributions.
 
-### Example:
+#### Example:
 
 For this function, it is necessary to define:
 

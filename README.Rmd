@@ -7,11 +7,11 @@ output: github_document
 
 [EN] This package was created to compile the necessary functions for analyzing medical imaging phenotypes alongside OMIC data. It provides functions for the complete analysis workflow, from data preprocessing to building associative models.
 
-# Precision Calculation
+## Precision Calculation
 
 In most cases, when working with microarrays for the quantification of miRNA, RNA, or protein presence, duplicates are used. These duplicates help reduce measurement variability by averaging the two results. Additionally, they allow for quantifying variability and determining the precision of the measuring equipment. Measuring precision is crucial to understanding the variability of measurements, ensuring that the associations we identify are robust and reliable.
 
-## Measure precision
+### Measure precision
 
 This function is based on the 2009 article _"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White** (https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032). 
 
@@ -33,7 +33,7 @@ $$
 
 The function calculates precision as relative values because, in most microarray or similar techniques, the absolute error is proportional to the particle's absolute presence. For this reason, results are expressed as percentages (%).
 
-### Example:
+#### Example:
 
 The input dataset should have the following structure: 
 
@@ -83,7 +83,7 @@ knitr::kable(head(tb_output$data[[1]]))
 ```
 Each of the rows of `data` dataset represent one sample. The `diff` value represent the difference between the sample duplicates, ̀`mn` column determines the average value between the duplicates, and the `n` column the number of copies that have been use to calculate the values (2 in the case of duplicates, 3 in the case of triplicates etc.)
 
-## Error propagation
+### Error propagation
 
 The error propagation function complements the previous precision calculation function. In some cases, the final value used in the analysis is derived from a combination of measurements obtained from different sensors. The `error_propagation` function calculates both the final value and its associated error based on the provided precision values. 
 
@@ -94,7 +94,7 @@ $$
 $$
 Here, the influence of each sensor measurement on the final result is determined by calculating the partial derivative of the normalization formula with respect to that specific sensor. This helps us assess how a unitary change in a variable would impact the final result. Each partial derivative is then multiplied by the error value of that measurement. The overall error is derived from the Euclidean norm of these independent contributions, calculated as the root of the sum of squares of individual error contributions.
 
-### Example:
+#### Example:
 
 For this function, it is necessary to define:
 
