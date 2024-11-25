@@ -45,10 +45,19 @@ measure_precision <- function(tb, img = TRUE){
   # Covert into factor the sensor column
   tb$sensor <- as.factor(tb$sensor)
 
+  # Ensure that the column measurement is numeric and eliminate anything that is not a number
+  tb$measurement <- as.numeric(tb$measurement)
+
   # Eliminate any NA value
   tb <- tb %>%
     dplyr::filter(!is.na(sensor))%>%
     dplyr::filter(!is.na(measurement))
+
+  if(length(tb$ID) == 0) {
+
+    stop("All IDs have NA values in measurement OR sensor columns")
+
+  }
 
   # Calculate the difference of each sensor measurement
   tb_diff <- tb %>%
@@ -59,10 +68,22 @@ measure_precision <- function(tb, img = TRUE){
       n = mean_pairwise_diff(measurement)[2],
     )
 
-  # Make sure that the the length of tb_diff is correct
-  # Make sure that there are not NA values in the dataframe
-  # In the case there are NA values delete them
-  # Report how many NA values and how many non-NA values there are
+  if (all(is.na(tb_diff$diff))) {
+
+    stop("There are no duplicates in your dataframe")
+
+  }
+
+  # Count the single values
+
+  non_duplicates <- sum(tb_diff$n == 1)
+
+  if (non_duplicates > 0){
+    message(paste(non_duplicates, "measurements have been removed since they do not have duplicate values"))
+  }
+  # Eliminate the NO-duplicate info
+  tb_diff <- tb_diff %>%
+    dplyr::filter(!is.na(diff))
 
   # Plot the absolute and relative difference -------------------
   if (img) {
