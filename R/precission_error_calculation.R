@@ -141,7 +141,19 @@ measure_precision <- function(tb, img = TRUE){
 #' result <- error_propagation(tb, fun)
 #' @export
 
-error_propagation <- function (tb, fun){
+error_propagation <- function (tb, fun = NULL){
+
+  if(is.null(fun)){
+
+    stop("fun is missing. It is neccessary to provide the fun expression.")
+
+  }
+
+  if(class(fun) != "expression"){
+
+    stop("fun need to be expression type")
+
+  }
 
   required_columns <- c("sensor", "err", "data")
 
@@ -181,9 +193,28 @@ error_propagation <- function (tb, fun){
   # Check if there is some variable in the function that is not defined in the tb
   missing_vars <- setdiff(vars, tb$sensor)
   if (length(missing_vars) > 0) {
-    missing_msg <- paste("The following variables defined in the equation are not shown in the input tibble:", paste(missing_columns, collapse = ", "))
+    missing_msg <- paste("The following variables defined in the equation are not shown in the input tibble:", paste(missing_vars, collapse = ", "))
     stop(missing_msg) # Stop execution with an error message
   }
+
+  error_check <- as.double(tb$err[tb$sensor == rep(vars, length.out = length(tb$sensor))])
+
+  # Check if there is some error value that have not being defined
+  if (sum(is.na(error_check)) > 0){
+
+  sens_errors <- as.character(tb$sensor[is.na(error_check)])
+
+    stop(paste("The following sensors have NA values in err column:", paste(sens_errors, collapse = ", ")))
+
+  }
+
+  # Ensure that mn and n are numeric values
+  tb <- tb %>%
+    dplyr::mutate(data = purrr::map(data, ~ .x %>% dplyr::mutate(
+      mn = as.numeric(mn),
+      n = as.numeric(n)
+    )))
+
 
   # Simplify the tibble to save the mn value of each sensor divided in columns and ordered in rows by ID.
   df_measure <- tb %>%
@@ -197,13 +228,19 @@ error_propagation <- function (tb, fun){
   df_measure2 <- df_measure %>%
     dplyr::filter(if_all(everything(), ~ !is.na(.)))
 
-  df_dif <- length(df_measure$ID) - length(df_measure2$ID)
+  df_dif <- nrow(df_measure) - nrow(df_measure2)
 
   if (df_dif > 0) {
 
-    message(df_dif, "samples have been excluded from the calulation due to missing values in sensor data.")
+    message(paste(df_dif, "samples have been excluded from the calulation due to missing values in sensor data."))
 
     df_measure <- df_measure2
+
+  }
+
+  if(nrow(df_measure) == 0){
+
+    stop("0 samples with ALL the needed measurements. Impossible to calculate the new measurement in any sample.")
 
   }
 
