@@ -12,7 +12,7 @@ tb <- data.frame(
 
 # Testing ERROR and MESSAGES
 
-test_that("Error when missing columns", {
+test_that("Error when missing columns in measure_precision", {
   tb1 <- tb
   colnames(tb1) <- c("id", "sens", "measurement")
 
@@ -25,7 +25,7 @@ test_that("Error when missing columns", {
 })
 
 
-test_that("Error when NA values in ID", {
+test_that("Error when NA values in ID column in measure_precision", {
   tb1 <- rbind(tb, c(NA, "s1", 8))
 
   expect_error(
@@ -36,7 +36,7 @@ test_that("Error when NA values in ID", {
   )
 })
 
-test_that("Error when no duplicates", {
+test_that("Error when no duplicates values in measure_precision", {
   tb1 <- tb
   tb1$sensor <- c("s1", "s2", "s3", "s4", "s1", "s2" ,"s3", "s4")
 
@@ -48,7 +48,7 @@ test_that("Error when no duplicates", {
   )
 })
 
-test_that("Message when there are values with NO-duplicate", {
+test_that("Message when in measure_precision there are values without duplicated value", {
 
   tb1 <- data.frame(
     ID = c("id1", "id1", "id1", "id1", "id2", "id2", "id2", "id2", "id2"),
@@ -63,7 +63,7 @@ test_that("Message when there are values with NO-duplicate", {
   )
 })
 
-test_that("Error when ALL samples have NA in sensor or measurement columns", {
+test_that("measure_precision | Error when ALL samples have NA in sensor or measurement columns", {
   tb1 <- tb
   tb1$sensor <- c(NA, NA, NA, NA, NA, NA, NA, NA)
 
@@ -78,7 +78,7 @@ test_that("Error when ALL samples have NA in sensor or measurement columns", {
 
 # Testing correct data corrections
 
-test_that("Samples with NA values in sensor or measurement are removed", {
+test_that("measure_precision | Samples with NA values in sensor or measurement are removed", {
 
   tb1 <- data.frame(
     ID = c("id1", "id1", "id1", "id1", "id2", "id2", "id2", "id2"),
@@ -89,7 +89,7 @@ test_that("Samples with NA values in sensor or measurement are removed", {
   expect_equal(nrow(res), 1)
 })
 
-test_that("Measurement column is interpreted correctly even if it is character type", {
+test_that("measure_precision | Measurement column is interpreted correctly even if it is character type", {
 
   tb1 <- data.frame(
     ID = c("id1", "id1", "id1", "id1", "id2", "id2", "id2", "id2"),
@@ -103,11 +103,11 @@ test_that("Measurement column is interpreted correctly even if it is character t
 
 # Testing plot generation
 
-test_that("Plots are generated when img = TRUE", {
+test_that("measure_precision | Plots are generated when img = TRUE", {
   expect_silent(measure_precision(tb, img = TRUE))
 })
 
-test_that("No plots are generated when img = FALSE", {
+test_that("measure_precision | No plots are generated when img = FALSE", {
 
   # Capture plot history before calling the function
   plot_history_before <- grDevices::recordPlot()
@@ -124,7 +124,7 @@ test_that("No plots are generated when img = FALSE", {
 
 # Testing correct MAD and RMS calculation
 
-test_that("RMS is correctly calculated with just duplicates", {
+test_that("measure_precision | RMS is correctly calculated with just duplicates", {
   tb <- data.frame(
     ID = c("id1", "id1", "id1", "id1", "id2", "id2", "id2", "id2"),
     sensor = c("s1", "s2", "s1", "s2", "s1", "s2", "s1", "s2"),
@@ -138,7 +138,7 @@ test_that("RMS is correctly calculated with just duplicates", {
 
 })
 
-test_that("MAD is correctly calculated with just duplicates", {
+test_that("measure_precision | MAD is correctly calculated with just duplicates", {
   tb <- data.frame(
     ID = c("id1", "id1", "id1", "id1", "id2", "id2", "id2", "id2"),
     sensor = c("s1", "s2", "s1", "s2", "s1", "s2", "s1", "s2"),
@@ -155,7 +155,7 @@ test_that("MAD is correctly calculated with just duplicates", {
 
 # Edge cases
 
-test_that("Error when introducing empty dataframe in measuring precision", {
+test_that("measure_precision | Error when introducing empty dataframe in measuring precision", {
   tb1 <- data.frame()
 
   expect_error(
@@ -165,9 +165,18 @@ test_that("Error when introducing empty dataframe in measuring precision", {
 
   )
 
+  tb1 <- data.frame(ID = numeric(0), sensor = numeric(0), measurement = numeric(0))
+
+  expect_error(
+    measure_precision(tb1),
+
+    "All IDs have NA values in measurement OR sensor columns"
+
+  )
+
 })
 
-test_that("Error introducing a data.frame with just one row in measuring precision", {
+test_that("measure_precision | Error introducing a data.frame with just one row in measuring precision", {
   tb1 <- data.frame(ID = "id1", sensor = "s1", measurement = 1)
 
   expect_error(
@@ -188,7 +197,7 @@ fun <- expression(s1/s2)
 
 # Testing ERROR or MESSAGES
 
-test_that("Error when missing columns in error_prop", {
+test_that("Error when missing columns in error_propagation", {
   df1 <- df
   colnames(df1) <- c("X", "X", "RMS", "err", "n_precision")
 
@@ -200,7 +209,7 @@ test_that("Error when missing columns in error_prop", {
   )
 })
 
-test_that("Error when data column is not a df", {
+test_that("error_propagation | Error when data column is not a df", {
   df1 <- df
   df1$data <- df1$n_precision
 
@@ -214,7 +223,7 @@ test_that("Error when data column is not a df", {
 
 # For the next case I know that I am modifying just one of the data df-s, I mean I am getting just the one from the first row.
 # In the future I can improve the code, but by the moment I dont think it would be necessary.
-test_that("Error when data column is missing a required column", {
+test_that("error_propagation | Error when data column is missing a required column", {
   df1 <- df
   colnames(df1$data[[1]]) <- c("X", "diff", "XX", "n")
 
@@ -227,7 +236,7 @@ test_that("Error when data column is missing a required column", {
 })
 
 
-test_that("Error when fun variable is missing", {
+test_that("error_propagation | Error when fun variable is missing", {
 
   expect_error(
     error_propagation(df),
@@ -237,7 +246,7 @@ test_that("Error when fun variable is missing", {
   )
 })
 
-test_that("Error when fun variables are not shown in the input dataframe", {
+test_that("error_propagation | Error when fun variables are not shown in the input dataframe", {
 
   expect_error(
     error_propagation(df, expression(x + y)),
@@ -248,7 +257,7 @@ test_that("Error when fun variables are not shown in the input dataframe", {
 })
 
 
-test_that("Error when fun is not expresion type", {
+test_that("error_propagation | Error when fun is not expresion type", {
 
   expect_error(
     error_propagation(df, c("hello", 6)),
@@ -258,7 +267,7 @@ test_that("Error when fun is not expresion type", {
   )
 })
 
-test_that("When NAs are introduced in the data df are being ignored", {
+test_that("error_propagation | Tst that when NAs are introduced in the data df are being ignored", {
 
   df1 <- df
   df1$data[[1]] <- rbind(df1$data[[1]], c("id3", 0, NA, 0))
@@ -276,7 +285,7 @@ test_that("When NAs are introduced in the data df are being ignored", {
 
 })
 
-test_that("Error when there is NO sample with ALL the reuired measurements", {
+test_that("error_propagation | Error when there is NO sample with ALL the reuired measurements", {
   df1 <- df
   df1$data[[1]]$mn <- c(NA, 49)
   df1$data[[2]]$mn <- c(18, NA)
@@ -290,7 +299,7 @@ test_that("Error when there is NO sample with ALL the reuired measurements", {
   )
 })
 
-test_that("Error when there is NA values in required sensor columns", {
+test_that("error_propagation | Error when there is NA values in required sensor columns", {
   df1 <- rbind(df, df)
   df1$sensor <- c("s1", "s2", "s3", "s4")
   df1$err <- c(10, NA, NA, 5)
@@ -308,7 +317,7 @@ test_that("Error when there is NA values in required sensor columns", {
 
 # Testing the correct CALCULATION of the parameters
 
-test_that("Extra sensor rows are not affecting the final results", {
+test_that("error_propagation | Extra sensor rows are not affecting the final results", {
   df1 <- rbind(df, df)
   df1$sensor <- c("s1", "s2", "s3", "s4")
 
@@ -318,7 +327,7 @@ test_that("Extra sensor rows are not affecting the final results", {
 
 })
 
-test_that("Measure results are correct", {
+test_that("error_propagation | Measure results are correct", {
   df1 <- rbind(df, df)
   df1$sensor <- c("s1", "s2", "s3", "s4")
 
@@ -338,7 +347,7 @@ test_that("Measure results are correct", {
 
 })
 
-test_that("Error results are correct", {
+test_that("error_propagation | Error results are correct", {
 
   fun1 <- expression((s1*s2))
 
