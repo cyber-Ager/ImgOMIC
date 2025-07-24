@@ -134,3 +134,9 @@ The output is a dataframe containing two columns:
 
   - `measure`: The desired measurement value, calculated from the defined expression.
   - `error`: The absolute value of the propagated error associated with the `measure` value.
+  
+## Diameter correction
+
+CT-variability: https://ajronline.org/doi/10.2214/ajr.175.5.1751279?utm_source=chatgpt.com
+
+US variability: https://pubmed.ncbi.nlm.nih.gov/28765014/

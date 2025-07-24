@@ -2,7 +2,7 @@
 % Please edit documentation in R/diameter_correction.R
 \name{correct_diameter_single}
 \alias{correct_diameter_single}
-\title{Correct diameter values of an artery from a single patient dataset.}
+\title{Correct diameter values for a single-patient dataset}
 \usage{
 correct_diameter_single(
   df_patient,
@@ -14,35 +14,52 @@ correct_diameter_single(
 )
 }
 \arguments{
-\item{df_patient}{A data.frame with columns Date (numeric), Diam, CT.}
+\item{df_patient}{A data.frame with columns:
+\itemize{
+\item \code{Date}: Numeric time points (e.g., decimal years)
+\item \code{Diam}: Measured diameters
+\item \code{CT}: Indicator (1=CT, 0=Ultrasound)
+}}
 
-\item{sdUS}{Standard deviation of the diameter measured by Ultrasound, in the same units as the dataframe Diam values. 2 as default.}
+\item{sdUS}{Numeric. Standard deviation of Ultrasound diameter measurements.
+Default: 2.}
 
-\item{sdCT}{Standard deviation of the diameter measured by CT-scan in the same units as the dataframe Diam values. 1 as default.}
+\item{sdCT}{Numeric. Standard deviation of CT-scan diameter measurements.
+Default: 1.}
 
-\item{sp}{Number of points to discretize the probability distribution. 4 as default.}
+\item{sp}{Integer. Number of discretization points for the error distribution.
+Default: 4.}
 
-\item{dlim_sup}{Maximum allowed growth (Diam2-Diam1)/(Date2-Date1). 50 as default.}
+\item{dlim_sup}{Numeric. Maximum allowable growth rate
+\verb{(Diam_t - Diam_\{t-1\}) / (Date_t - Date_\{t-1\})}. Default: 50.}
 
-\item{dlim_inf}{Minimum allowed growth (Diam2-Diam1)/(Date2-Date1). 0 as default.}
+\item{dlim_inf}{Numeric. Minimum allowable growth rate
+\verb{(Diam_t - Diam_\{t-1\}) / (Date_t - Date_\{t-1\})}. Default: 0.}
 }
 \value{
-A list with 3 elements. \code{curves} vector that contains the curves with the maximum probability of existence that fits the input conditions. \code{max_prob} The product of the probability of each point of the curve. \code{num_curves} number of curves with the maximum probability.
+A list containing:
+\itemize{
+\item \code{curves}: A list of the most-probable diameter progression vectors.
+\item \code{max_prob}: The maximum joint probability among these curves.
+\item \code{num_curves}: Number of curves sharing that maximum probability.
+}
 }
 \description{
-Takes into account the error of the diameter measures from an artery depending the technique that have been used for measuring it.
-Generates additional diameter measures with an associated probability of being real based on the standard deviation of the measure.
-Finds the most probable diameter progression curve using Viterbi algorithm.
+Adjusts measured artery diameters by accounting for measurement error
+based on imaging modality (Ultrasound or CT). It generates multiple
+candidate diameters with associated probabilities derived from a normal
+distribution of measurement error, then uses a Viterbi-like algorithm to
+find all most-probable non-decreasing diameter progression curves.
 }
 \examples{
 data <- data.frame(
- ID = as.factor(c("1", "1", "1", "1", "1", "1", "1", "1", "1", "2", "2", "2", "2")),
- Date = c(2015, 2016, 2017, 2020, 2021, 2024, 2025, 2026, 2027, 2013, 2016, 2018, 2019),
- Diam = c(30, 35, 34, 53, 50, 52, 55, 55, 57, 38, 42, 50, 53),
- CT = as.factor(c(1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1))
+  ID = factor(c("1","1","1","1","1","1","1","1","1",
+                "2","2","2","2")),
+  Date = c(2015, 2016, 2017, 2020, 2021, 2024, 2025, 2026, 2027,
+           2013, 2016, 2018, 2019),
+  Diam = c(30, 35, 34, 53, 50, 52, 55, 55, 57, 38, 42, 50, 53),
+  CT   = factor(c(1,0,0,1,0,0,1,0,1,0,0,0,1))
 )
-
-# Filter patients
-df_patient <- data[ID==1,]
+df_patient <- subset(data, ID == "1")
 res <- correct_diameter_single(df_patient)
 }

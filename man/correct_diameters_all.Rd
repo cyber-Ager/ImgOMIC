@@ -2,7 +2,7 @@
 % Please edit documentation in R/diameter_correction.R
 \name{correct_diameters_all}
 \alias{correct_diameters_all}
-\title{Correct diameter values of an artery from a multi-patient dataset.}
+\title{Correct diameter values across multiple patients}
 \usage{
 correct_diameters_all(
   data,
@@ -14,34 +14,34 @@ correct_diameters_all(
 )
 }
 \arguments{
-\item{sdUS}{Standard deviation of the diameter measured by Ultrasound, in the same units as the dataframe Diam values. 2 as default.}
+\item{data}{A data.frame with columns ID, Date, Diam, CT.}
 
-\item{sdCT}{Standard deviation of the diameter measured by CT-scan in the same units as the dataframe Diam values. 1 as default.}
+\item{sdUS}{Numeric. SD for Ultrasound measures. Default: 2.}
 
-\item{sp}{Number of points to discretize the probability distribution. 4 as default.}
+\item{sdCT}{Numeric. SD for CT measures. Default: 1.}
 
-\item{dlim_inf}{Minimum allowed growth (Diam2-Diam1)/(Date2-Date1). 0 as default.}
+\item{sp}{Integer. Number of discretization points. Default: 4.}
 
-\item{dlim_sup}{Maximum allowed growth (Diam2-Diam1)/(Date2-Date1). 50 as default.}
+\item{dlim_inf}{Numeric. Minimum growth rate. Default: 0.}
 
-\item{df_patient}{A data.frame with columns ID, Date, Diam, CT.}
+\item{dlim_sup}{Numeric. Maximum growth rate. Default: 50.}
 }
 \value{
-A dataframe with the same number of rows as the input dataframe with corrected diameter values and a additional column that specifies if the measure have been corrected or not.
+A data.frame with the same rows as \code{data}, updated \code{Diam}, and
+a new \code{corrected} column indicating which values were adjusted.
 }
 \description{
-Takes into account the error of the diameter measures from an artery depending the technique that have been used for measuring it.
-Generates additional diameter measures with an associated probability of being real based on the standard deviation of the measure.
-Finds the most probable diameter progression curve using Viterbi algorithm and returns a dataframe with the corrected values.
-The output dataset has an additional column where it specifies if the diameter progression curve have been corrected or not.
+Applies the single-patient correction to each patient in a dataset.
+Converts Date to decimal years if needed, filters out rows with missing
+Diam, CT, or Date, and replaces Diam with the most-probable curve (or the
+average when multiple curves tie). Adds a logical \code{corrected} flag.
 }
 \examples{
 data <- data.frame(
- ID = as.factor(c("1", "1", "1", "1", "1", "1", "1", "1", "1", "2", "2", "2", "2")),
- Date = c(2015, 2016, 2017, 2020, 2021, 2024, 2025, 2026, 2027, 2013, 2016, 2018, 2019),
- Diam = c(30, 35, 34, 53, 50, 52, 55, 55, 57, 38, 42, 50, 53),
- CT = as.factor(c(1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 1))
+  ID = factor(c("1","1","2","2")),
+  Date = c(2015, 2016, 2015, 2017),
+  Diam = c(30, 35, 40, 45),
+  CT   = factor(c(1, 0, 1, 0))
 )
-
-res <- correct_diameter_all(df_patient)
+res_all <- correct_diameters_all(data)
 }
