@@ -4,7 +4,7 @@
 \alias{error_propagation}
 \title{Error Propagation calculation}
 \usage{
-error_propagation(tb, fun)
+error_propagation(tb, fun = NULL)
 }
 \arguments{
 \item{tb}{A tibble containing the measurements to be used in the error propagation calculation. The tibble should include

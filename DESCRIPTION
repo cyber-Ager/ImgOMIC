@@ -1,12 +1,10 @@
 Package: ImgOMIC
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"),
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Title: Package for analyzing medical imaging phenotypes alongside OMIC data
+Version: 0.2.0
+Authors@R: person("Ager", "Uribezubia", email="ageuriazp@gmail.com", role = c("aut", "cre"))
+Description: This package was created to compile the necessary functions for analyzing medical imaging phenotypes alongside OMIC data. It provides functions for the complete analysis workflow, from data preprocessing to building associative models.
+License: GPL-3
+Depends: R (>= 3.6), dplyr, purrr, lubridate
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2

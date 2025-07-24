@@ -2,6 +2,8 @@
 
 export(MAD_precision)
 export(RMS_precision)
+export(correct_diameter_single)
+export(correct_diameters_all)
 export(error_propagation)
 export(mean_pairwise_diff)
 export(measure_precision)
