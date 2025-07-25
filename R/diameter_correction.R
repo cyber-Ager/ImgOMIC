@@ -39,13 +39,48 @@
 #' res <- correct_diameter_single(df_patient)
 #' @export
 correct_diameter_single <- function(df_patient,
-                                    sdUS = 2, sdCT = 1, sp = 4,
+                                    sdUS = 3.5, sdCT = 1.9, sp = 4,
                                     dlim_sup = 1000, dlim_inf = 0) {
 
   # Check if input is empty
   if (nrow(df_patient) == 0) {
     stop("Input data frame is empty.")
   }
+
+  # Check if input is empty
+  if (nrow(df_patient) == 1) {
+    stop("Input data-frame needs more than one value to be computed.")
+  }
+
+  if (any(is.na(df_patient$Date) |
+          is.na(df_patient$CT) |
+          is.na(df_patient$Diam))) {
+    stop("Input data-frame has NA values in some of the key columns: Date, CT, Diam")
+  }
+
+  # Diam need to be numeric
+  if (!is.numeric(df_patient$Diam)){
+
+    stop("Diam column need to be numeric")
+
+  }
+
+  # CT need to have 0 and 1 values only
+  if (!all(unique(as.character(df_patient$CT)) %in% c("0" , "1"))){
+
+    stop("CT column can only handle 1 and 0 values")
+
+  }
+
+  if (length(unique(df_patient$Date))!= length(df_patient$Date)){
+
+    stop("Date column can not have duplicated values")
+
+  }
+
+  # Arrange rows by the Date
+  df_patient <- df_patient %>%
+    dplyr::arrange(Date)
 
   # Check required columns
   required_cols <- c("Date", "Diam", "CT")
@@ -135,6 +170,7 @@ correct_diameter_single <- function(df_patient,
   all_best_paths <- unlist(lapply(final_idxs, function(i) build_paths(n, i)), recursive = FALSE)
 
   list(curves     = all_best_paths,
+       dates      = df_patient$Date,
        max_prob   = max_prob,
        num_curves = length(all_best_paths))
 }
@@ -165,7 +201,7 @@ correct_diameter_single <- function(df_patient,
 #' )
 #' res_all <- correct_diameters_all(data)
 #' @export
-correct_diameters_all <- function(data, sdUS = 2, sdCT = 1, sp = 4,
+correct_diameters_all <- function(data, sdUS = 3.5, sdCT = 1.9, sp = 4,
                                   dlim_inf = 0, dlim_sup = 50) {
 
   # Check if input is a data frame and not empty
@@ -183,21 +219,34 @@ correct_diameters_all <- function(data, sdUS = 2, sdCT = 1, sp = 4,
   # Convert ID to character to forget about ghost levels
   data$ID <- as.character(data$ID)
 
+  # Save previous date
+  pre_date <- data$Date
+
   # Converts date to numeric format
   if (inherits(data$Date, "Date")) {
     data <- dplyr::mutate(data, Date = decimal_date(Date))
   }
+
   data <- dplyr::mutate(data, CT = as.numeric(as.character(CT)))
 
+
+  # map_dfr make any process in teh data and afterwards it bind the rows and cols
   out <- data %>%
     split(.$ID) %>%
     purrr::map_dfr(function(df_patient) {
+
+      # Add column
       df_patient$corrected <- FALSE
+
+      # Check valid ids
       valid_idx <- which(!is.na(df_patient$Diam) &
                            !is.na(df_patient$CT)   &
                            !is.na(df_patient$Date))
+
+      # Get valid data frame
       df_valid  <- df_patient[valid_idx, ]
 
+      # Process it if it has good length
       if (nrow(df_valid) >= 2) {
         res <- correct_diameter_single(df_valid, sdUS, sdCT, sp,
                                        dlim_inf = dlim_inf,
@@ -208,11 +257,15 @@ correct_diameters_all <- function(data, sdUS = 2, sdCT = 1, sp = 4,
           } else {
             best_curve <- colMeans(do.call(rbind, res$curves))
           }
-          df_patient$Diam[valid_idx]      <- best_curve
+          # Modify the previous dataframe
+          # Taking into account the previous order of the df
+          df_patient$Diam[valid_idx]      <- best_curve[order(df_patient$Date[valid_idx])]
           df_patient$corrected[valid_idx] <- TRUE
         }
       }
       df_patient
     })
+  # Save previous date format
+  out$Date <- pre_date
   out
 }

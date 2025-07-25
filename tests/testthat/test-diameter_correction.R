@@ -14,13 +14,15 @@ data_multi <- data.frame(
 
 df_patient <- subset(data_multi, ID == "1")
 
+res <- correct_diameter_single(df_patient, sdUS = 1, sdCT = 1, sp = 2,
+                               dlim_inf = 0, dlim_sup = 100)
 # Test that correct_diameter_single returns expected structure
 test_that("correct_diameter_single returns list with correct elements", {
-  res <- correct_diameter_single(df_patient, sdUS = 1, sdCT = 1, sp = 2,
-                                 dlim_inf = 0, dlim_sup = 100)
+
   expect_type(res, "list")
-  expect_named(res, c("curves", "max_prob", "num_curves"))
+  expect_named(res, c("curves", "dates", "max_prob", "num_curves"))
   expect_true(is.numeric(res$max_prob) && res$max_prob >= 0)
+  expect_true(length(res$dates) == length(res$curves[[1]]))
   expect_true(is.integer(res$num_curves) || is.numeric(res$num_curves))
   expect_true(is.list(res$curves))
 })
@@ -49,6 +51,15 @@ test_that("correct_diameter_single returns expected curves and probability", {
   expect_equal(res$num_curves, expected_num_curves)
 })
 
+test_that("Ensure the order of the result is corrected", {
+  df_order <- data.frame(Date = c(2021, 2020), Diam = c(30, 32), CT = c(0, 1))
+  res <- correct_diameter_single(df_order, sdUS = 2, sdCT = 1, sp = 4,
+                                 dlim_sup = 1000, dlim_inf = 0)
+  expect_equal(res$dates, c(2020,2021))
+  expect_equal(res$curves[[1]], c(32,33))
+
+})
+
 # TEST ERRORS
 test_that("correct_diameter_single throws error for empty data", {
   expect_error(
@@ -60,12 +71,62 @@ test_that("correct_diameter_single throws error for empty data", {
 test_that("correct_diameter_single throws error for missing required columns", {
   df_invalid <- data.frame(Date = c(2020, 2021), Diam = c(30, 32))
   expect_error(
-    correct_diameter_single(df_invalid),
+    correct_diameter_single(df_invalid, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0),
     "Input data frame is missing required columns: CT"
   )
 })
 
+test_that("correct_diameter_single throws error for NA values and single row", {
+  df_invalid <- data.frame(Date = c(2020, NA), Diam = c(30, 32), CT = c(0, 1))
+  expect_error(
+    correct_diameter_single(df_invalid, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0),
+    "Input data-frame has NA values in some of the key columns: Date, CT, Diam"
+  )
 
+  df_invalid2 <- df_invalid[!is.na(df_invalid$Date),]
+  expect_error(
+    correct_diameter_single(df_invalid2, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0),
+    "Input data-frame needs more than one value to be computed."
+  )
+})
+
+test_that("correct_diameter_single throws error for incorrect Diam format", {
+  df_invalid <- data.frame(Date = c(2020, 2021), Diam = c(30, "b"), CT = c(0, 1))
+  expect_error(
+    correct_diameter_single(df_invalid, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0),
+    "Diam column need to be numeric"
+  )
+})
+
+test_that("correct_diameter_single throws error for duplicated Date value", {
+  df_invalid <- data.frame(Date = c(2020, 2020), Diam = c(40, 45), CT = c(0, 1))
+  expect_error(
+    correct_diameter_single(df_invalid, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0),
+    "Date column can not have duplicated values"
+  )
+})
+
+test_that("correct_diameter_single throws error for CT incorrect format", {
+  df_invalid <- data.frame(Date = c(2020, 2021), Diam = c(30, 32), CT = c(0, 2))
+  expect_error(
+    correct_diameter_single(df_invalid, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0),
+    "CT column can only handle 1 and 0 values"
+  )
+})
+
+# TEST NULL
+test_that("If the curve has a sudden very low diameter returns NULL", {
+  df_invalid <- data.frame(Date = c(2020, 2021), Diam = c(30, 5), CT = c(0,1))
+  expect_null(
+    correct_diameter_single(df_invalid, sdUS = 2, sdCT = 1, sp = 4,
+                            dlim_sup = 1000, dlim_inf = 0))
+})
 
 
 # Sample data for multiple patients---------------------------------------------
@@ -116,8 +177,21 @@ test_that("corrected flag is FALSE when <2 valid diameters or incomplete data", 
     Diam = c(30, 34, 36),
     CT   = factor(c(1, 0, 0))
   )
-  res3 <- correct_diameters_all(df3)
+  res3 <- correct_diameters_all(df3, sdUS = 2, sdCT = 1, sp = 4,
+                                dlim_inf = 0, dlim_sup = 50)
   expect_true(all(res3$corrected))
+
+  # Case 4: One NA value but still more than 2 rows
+  df4 <- data.frame(
+    ID = factor(rep("C", 3)),
+    Date = c(2015, 2016, 2017),
+    Diam = c(30, 34, 36),
+    CT   = factor(c(1, NA, 0))
+  )
+  res4 <- correct_diameters_all(df4, sdUS = 2, sdCT = 1, sp = 4,
+                                dlim_inf = 0, dlim_sup = 50)
+  expect_true(sum(!res4$corrected) == 1)
+  expect_equal(res4$Diam, df4$Diam)
 })
 
 # TEST average Curve
@@ -155,6 +229,31 @@ test_that("correct_diameters_all returns average of curves from correct_diameter
   # Expect equal with tolerance due to floating point arithmetic
   expect_equal(corrected_diam, expected_avg, tolerance = 1e-6)
 })
+
+# Test DATE
+test_that("correct_diameter_single do not modifies the date format and order", {
+  df_disorder <- data.frame(ID = c("a", "a", "a"), Date = as.Date(c("2021-01-01",
+                                                                    "2020-01-01",
+                                                                    "2022-01-01")),
+                            Diam = c(30, 32, 35),
+                            CT = c(0, 1, 1))
+
+  res <- correct_diameters_all(df_disorder, sdUS = 2, sdCT = 1, sp = 4,
+                               dlim_inf = 0, dlim_sup = 50)
+  expect_equal(df_disorder$Date, res$Date)
+  expect_equal(res$Diam, c(33, 32, 35))
+})
+
+# TEST ENSURE ORDER is not changed
+
+test_that("Row order is not modified in the result", {
+  data_multi$kk <- 1:10
+  res <- correct_diameters_all(data_multi, sdUS = 2, sdCT = 1, sp = 4,
+                               dlim_inf = 0, dlim_sup = 50)
+
+  expect_equal(res$kk, data_multi$kk)
+})
+
 
 
 # TEST ERRORS
