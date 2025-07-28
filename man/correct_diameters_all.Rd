@@ -6,8 +6,8 @@
 \usage{
 correct_diameters_all(
   data,
-  sdUS = 2,
-  sdCT = 1,
+  sdUS = 3.5,
+  sdCT = 1.9,
   sp = 4,
   dlim_inf = 0,
   dlim_sup = 50

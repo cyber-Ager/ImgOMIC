@@ -13,7 +13,7 @@ In most cases, when working with microarrays for the quantification of miRNA, RN
 
 ### Measure precision
 
-This function is based on the 2009 article _"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White** (https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032). 
+This function is based on the 2009 article [_"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White**](https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032). 
 
 The function's goal is to quantify the precision of each "sensor" used to detect the presence of a given particle. For instance, in miRNA detection using qPCR in a microarray, the "sensor" corresponds to the different miRNAs. Even if the same sample is introduced into every well, each well emits fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (e.g., stem-loop primers) differ for each miRNA. The measurement variability for each miRNA can differ, but this variability is assessable using duplicates.
 
@@ -137,6 +137,429 @@ The output is a dataframe containing two columns:
   
 ## Diameter correction
 
-CT-variability: https://ajronline.org/doi/10.2214/ajr.175.5.1751279?utm_source=chatgpt.com
+The **maximum transverse diameter** is currently the gold standard for monitoring **abdominal aortic aneurysms (AAA)** and other types of aneurysms. Consequently, this measurement is commonly used to assess aneurysm growth over time. However, the maximum diameter is subject to **inherent measurement errors** that vary depending on the imaging technique; typically **Ultrasound (US)** or **CT scans**.
 
-US variability: https://pubmed.ncbi.nlm.nih.gov/28765014/
+These technical inaccuracies can produce **implausible growth patterns**, such as sudden jumps or decreases in aneurysm size, which are not physiologically realistic. Such anomalies significantly hinder accurate growth assessments and may bias research outcomes.
+
+To address this, we have developed a set of R functions that **correct diameter measurements** by accounting for **modality-specific measurement errors**. Leveraging a probabilistic model and a dynamic programming approach, the functions transform noisy longitudinal data into realistic, monotonically increasing growth trajectories. The tools support both **single-patient** and **multi-patient** datasets and are ideal for use in clinical research or modeling applications where precise aneurysm progression estimates are critical.
+
+By default, the functions use standard deviation values for US and CT derived from AAA-specific studies. These defaults can be adjusted to accommodate research involving other types of aneurysms:
+
+- CT standard deviation: [J.J Wever et al., AJR, 2012](https://ajronline.org/doi/10.2214/ajr.175.5.1751279?utm_source=chatgpt.com)
+- US standard deviation: [Q. M. Ghulam et al., ESVS, 2017](https://pubmed.ncbi.nlm.nih.gov/28765014/)
+
+### Correct diameters for a single Patient
+
+#### Function Overview
+
+The function `correct_diameter_single` corrects diameter values for a single patient. The input data include the diameter progression over time and the type of imaging technique, which is specified in the `CT` column.
+
+The columns of the input dataset are described in the following table:
+
+```{r}
+#| echo = FALSE
+
+input_columns <- data.frame(
+  Column = c("Date", "Diameter", "CT"),
+  Description = c("Date of the measurement", "Measured aortic diameter", "Imaging modality"),
+  Values = c("Numeric Year. E.j. 2023.5", "Numeric (mm)", "1 = CT; 0 = US")
+)
+
+knitr::kable(input_columns, caption = "Input dataset columns")
+```
+
+In addition to this dataframe, the function also requires the definition of two parameters: `dlim_sup` and `dlim_inf`. These represent the upper and lower bounds of diameter change over time that are considered realistic. For example, since we know that abdominal aortic aneurysms (AAA) tend to grow rather than shrink, we might consider a negative change impossible. Similarly, we might assume that a growth of more than 30 mm per year is not plausible. In this case, we would set `dlim_inf = 0` and `dlim_sup = 30`.
+
+#### Measurement Precision
+
+The core idea of the function is to treat each diameter measurement not as a single fixed value, but as a probability distribution that reflects measurement uncertainty. This distribution is modeled as a normal distribution centered at the measured value, with a standard deviation determined by the imaging modality.
+
+This distribution is discretized into a number of points (defined by the variable `sp`) to approximate the uncertainty.
+
+```{r}
+#| echo = FALSE
+
+
+# Load required package
+library(ggplot2)
+
+# Define parameters
+sdUS <- 3.5
+sdCT <- 1.9
+sp   <- 8
+
+# Compute limits
+limUS <- 3 * sdUS
+limCT <- 3 * sdCT
+
+# Discretized x-points
+pUSx <- seq(-limUS, limUS, length.out = sp + 1)
+pCTx <- seq(-limCT, limCT, length.out = sp + 1)
+
+# Discretized y-points (densities, normalized)
+pUSy <- dnorm(pUSx, 0, sdUS); #pUSy <- pUSy / sum(pUSy)
+pCTy <- dnorm(pCTx, 0, sdCT); #pCTy <- pCTy / sum(pCTy)
+
+# Create a data frame for plotting the full normal curves
+curve_data <- data.frame(
+  x = seq(-max(limUS, limCT) * 1.1, max(limUS, limCT) * 1.1, length.out = 1000)
+)
+curve_data$US <- dnorm(curve_data$x, 0, sdUS)
+curve_data$CT <- dnorm(curve_data$x, 0, sdCT)
+
+# Create data frame for discretized points
+points_data <- data.frame(
+  x     = c(pUSx, pCTx),
+  y     = c(pUSy, pCTy),
+  group = rep(c("US", "CT"), each = length(pUSx))
+)
+
+
+# Plot
+ggplot() +
+  geom_line(data = curve_data, aes(x = x, y = US), color = "#4cd964", linewidth = 1) +
+  coord_cartesian(ylim = c(0, max(curve_data$CT) *1.3)) +  # adjust the limits as needed
+  geom_line(data = curve_data, aes(x = x, y = CT), color = "#007aff", linewidth = 1) +
+  geom_point(data = points_data, aes(x = x, y = y, color = group), size = 3) +
+  scale_color_manual(values = c("US" = "#4cd964", "CT" = "#007aff")) +
+  # Add vertical lines at ±1 SD
+  geom_vline(xintercept = c(-sdUS, sdUS), linetype = "dashed", color = "#4cd964") +
+  geom_vline(xintercept = c(-sdCT, sdCT), linetype = "dashed", color = "#007aff") +
+  # Add SD annotations
+  annotate("text", x = sdUS - 0.35, y = max(curve_data$CT), label = paste0("US SD: ", sdUS), color = "black", hjust = 0, angle = 90, size = 3.5) +
+  annotate("text", x = sdCT - 0.35, y = max(curve_data$CT), label = paste0("CT SD: ", sdCT), color = "black", hjust = 0, angle = 90, size = 3.5) +
+  labs(title = "Discretization of Normal Distributions (US vs CT)",
+       x = "Error (mm)",
+       y = "Normalized Probability",
+       color = "Imaging Modality") +
+  theme_minimal()
+```
+
+#### Curve Correction Logic
+
+The function `correct_diameter_single` builds a list of all possible diameter values over time based on the discretized distributions. Then, using a Viterbi-like algorithm, it finds the most probable predecessor diameter for each point in the time series. Only transitions within the limits defined by `dlim_inf` and `dlim_sup` are considered valid.
+
+Once the most probable predecessors are found for each time point, the algorithm **backtracks** through the list to reconstruct the curve(s) with the highest probability of being true. If there is more than one path with equal maximum probability, all such curves are returned.
+
+```{r, message=FALSE}
+#| echo = FALSE
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+devtools::load_all()
+
+# Patient dataframe
+df_patient <- data.frame(
+  ID = as.factor(c("1", "1", "1", "1", "1", "1", "1", "1", "1")),
+  Date = c(2015, 2016, 2017, 2020, 2021, 2022.5, 2023, 2024, 2025),
+  Diam = c(30, 35, 34, 53, 50, 54, 53, 55, 58),
+  CT = as.factor(c(1, 0, 0, 1, 0, 0, 0, 0, 1))
+)
+
+# Correct the df_patient
+corrected_result <- ImgOMIC::correct_diameter_single(df_patient, sp = 8)
+
+# Select the first corrected curve (if more than one)
+corrected_curve <- corrected_result$curves[[1]]
+corrected_dates <- corrected_result$dates
+
+# Assume df_patient and corrected_result are already in your environment:
+# df_patient: data.frame with columns Date, Diameter, CT (TRUE = CT, FALSE = US)
+# corrected_result <- correct_diameter_single(df_patient, dlim_inf = 0, dlim_sup = 30)
+# corrected_result$curves[[1]] is the first corrected curve
+
+# Parameters
+sdUS <- 3.5
+sdCT <- 1.9
+sp   <- 8
+
+# Precompute discretization grids
+limUS <- 3 * sdUS
+limCT <- 3 * sdCT
+pUSx  <- seq(-limUS, limUS, length.out = sp + 1)
+pCTx  <- seq(-limCT, limCT, length.out = sp + 1)
+pUSy  <- dnorm(pUSx, 0, sdUS)
+pCTy  <- dnorm(pCTx, 0, sdCT)
+
+# Build a data.frame of probability grids for each time point
+prob_grid <- lapply(seq_len(nrow(df_patient)), function(i) {
+  diam  <- df_patient$Diam[i]
+  date  <- df_patient$Date[i]
+  isCT  <- df_patient$CT[i] == 1
+  
+  if (isCT) {
+    x_offsets <- pCTx
+    probs     <- pCTy
+  } else {
+    x_offsets <- pUSx
+    probs     <- pUSy
+  }
+  
+  
+  data.frame(
+    Date     = date,
+    Value    = diam + x_offsets,
+    Probability = probs
+  )
+})
+
+prob_df <- bind_rows(prob_grid)
+
+# Extract corrected curve
+corrected_df <- data.frame(
+  Date      = corrected_result$dates,
+  Corrected = corrected_result$curves[[1]]
+)
+
+
+# Combine observed
+obs_df <- df_patient %>% select(Date, Observed = Diam)
+
+# # Plot everything
+ggplot() +
+  # probable points
+  geom_point(data = prob_df,
+             aes(x = Date, y = Value, color = Probability),
+             size = 3, alpha = 0.8) +
+  scale_color_gradient(low = "lightblue", high = "darkblue", name = "Prob.") +
+
+  # observed
+  geom_line(data = obs_df,
+            aes(x = Date, y = Observed),
+            color = "black", linetype = "dotted", linewidth = 1) +
+
+  # corrected
+  geom_line(data = corrected_df,
+            aes(x = Date, y = Corrected),
+            color = "#E91E63", linewidth = 1.2, alpha = 0.7) +
+
+  labs(title = "Diameter Progression: Observed vs Corrected",
+       x     = "Date (years)",
+       y     = "Diameter (mm)",
+       caption = "• Black dotted = Observed\n• Pink solid = Corrected\n• Blue dots = Probable points") +
+  theme_minimal()
+
+
+```
+
+
+#### Output
+
+The output of the function is a list with the following elements:
+
+- `curves`: A list of diameter progressions with the most probable values.
+- `dates`: The original input dates, ordered in ascending time.
+- `max_prob`: The maximum probability associated with the returned curves.
+- `num_curves`: The number of most-probable diameter progression curves returned.
+
+### Correct diameters in a longitudinal dataframe
+
+#### Function Overview
+
+The function `correct_diameters_all` applies the single‐patient correction to every individual in a longitudinal dataset. It takes as input a data frame with at least the following columns:
+
+- `ID` : patient identifier
+
+- `Date` : measurement time (either a decimal year or a Date object)
+
+- `Diam` : observed maximum transverse diameter (mm)
+
+- `CT` : imaging modality indicator (1 = CT, 0 = US)
+
+Five tuning parameters control the correction:
+
+- `sdUS`, `sdCT` : measurement‐error standard deviations for US and CT
+
+- `sp` : number of discretization points per measurement
+
+- `dlim_inf` : minimum permissible diameter change per year
+
+- `dlim_sup` : maximum permissible diameter change per year
+
+
+
+#### Processing Steps
+
+```{r}
+#| echo = FALSE
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+#devtools::load_all()
+
+# 1. Manually create raw data for 5 patients
+df_raw <- data.frame(
+  ID = rep(as.character(1:5), each = 6),
+  Date = as.Date(c(
+    # Patient 1
+    "2016-01-15", "2017-03-10", "2018-06-20", "2019-09-05", "2020-12-01", "2022-02-14",
+    # Patient 2
+    "2015-05-01", "2016-07-12", "2017-11-30", "2019-04-25", "2020-08-19", "2021-10-10",
+    # Patient 3
+    "2017-02-20", "2018-05-15", "2019-08-08", "2020-10-30", "2022-01-01", "2023-03-20",
+    # Patient 4
+    "2015-12-05", "2016-12-05", "2018-01-10", "2019-03-15", "2020-05-20", "2021-07-25",
+    # Patient 5
+    "2016-04-10", "2017-09-18", "2018-12-22", "2020-02-28", "2021-06-06", "2022-11-11"
+  )),
+  Diam = c(
+    # P1
+    30, 32, 37, 35, 33, 42,
+    # P2
+    25, 28, 30, 29, 35, 38,
+    # P3
+    40, 47, 45, 47, 54, 52,
+    # P4
+    20, 22, 28, 27, 29, 31,
+    # P5
+    33, 34, 36, 50, 49, 44
+  ),
+  CT = c(
+    # P1
+    1, 0, 0, 1, 0, 1,
+    # P2
+    0, 0, 1, 0, 1, 0,
+    # P3
+    1, 1, 0, 0, 1, 0,
+    # P4
+    0, 1, 0, 1, 0, 1,
+    # P5
+    1, 0, 1, 0, 1, 0
+  )
+)
+
+# 1) Input dataframe
+ggplot(df_raw, aes(x = Date, y = Diam, group = ID, color = ID)) +
+  geom_line(linewidth = 1) +
+  geom_point(aes(shape = factor(CT)), size = 3, fill = "white") +
+  scale_shape_manual(
+    name   = "CT",
+    values = c("0" = 16,  # circle for US
+               "1" = 4)   # cross for CT
+  ) +
+  labs(
+    title = "Input dataframe representation",
+    x     = "Date",
+    y     = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right")
+
+```
+
+1 - **Input validation**
+
+- The function first checks that the input is a non‐empty data frame containing all required columns.
+
+- Any missing or `NA` values in `Date`, `Diam`, or `CT` are excluded from correction.
+
+2 - **Type conversion**
+
+- `ID` is coerced to character to avoid factor‐level issues.
+
+- If `Date` is a `Date` object, it is converted to a decimal‐year numeric.
+
+- `CT` need to have only `0` and `1` values.
+
+3 - **Per‐patient correction**
+
+- The data frame is split by `ID` and processed patient by patient.
+
+- For each patient with at least two valid measurements, `correct_diameter_single()` is called with the specified `sdUS`, `sdCT`, `sp`, `dlim_inf`, and `dlim_sup`.
+
+- If only one most‐probable curve is returned, it replaces the original diameters.
+
+- If multiple equally probable curves exist, their elementwise average is taken as the “best” corrected trajectory.
+
+4 - **Flagging and reassembly**
+
+- A new logical column `corrected` is added: `TRUE` for those rows whose diameters were adjusted, FALSE otherwise.
+
+- All patient subsets are re‐combined in their original order and the original `Date` format is restored.
+
+#### Output
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+
+# 2. Apply multi‐patient correction
+df_corrected <- correct_diameters_all(
+  df_raw,
+  sdUS     = 3.5,
+  sdCT     = 1.9,
+  sp       = 10,
+  dlim_inf = 0,
+  dlim_sup = 30
+)
+
+# 3. Prepare for plotting: merge raw and corrected diameters
+plot_df <- df_corrected %>%
+  select(ID, Date, Diam_corrected = Diam, corrected) %>%
+  left_join(df_raw %>% rename(Diam_raw = Diam), by = c("ID", "Date")) %>%
+  tidyr::pivot_longer(
+    cols        = c(Diam_raw, Diam_corrected),
+    names_to    = "Type",
+    values_to   = "Diameter",
+    names_ptypes = list(Type = factor(levels = c("Diam_raw", "Diam_corrected")))
+  )
+
+# 4. Plot: raw in grey, corrected in pink, faceted by patient
+ggplot(plot_df, aes(x = Date, y = Diameter, color = Type)) +
+  geom_point(alpha = 0.6) +
+  geom_line(aes(group = interaction(ID, Type)), alpha = 0.8)+
+  coord_cartesian(ylim = c(20, 60))+ 
+  
+  scale_color_manual(
+    values = c(
+      "Diam_raw"        = "grey70",
+      "Diam_corrected"  = "#E91E63"
+    ),
+    labels = c(
+      "Raw measurements",
+      "Corrected measurements"
+    ),
+    name = NULL
+  ) +
+  
+  facet_wrap(~ ID, scales = "free_y", ncol = 5) +
+  labs(
+    title   = "Raw vs. Corrected Aneurysm Diameter Trajectories",
+    x       = "Date",
+    y       = "Diameter (mm)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.text      = element_text(face = "bold")
+  )
+
+ggplot(df_corrected, aes(x = Date, y = Diam, group = ID, color = ID)) +
+  geom_line(linewidth = 1) +
+  geom_point(aes(shape = factor(CT)), size = 3, fill = "white") +
+  scale_shape_manual(
+    name   = "CT",
+    values = c("0" = 16,  # circle for US
+               "1" = 4)   # cross for CT
+  ) +
+  labs(
+    title = "Input dataframe representation",
+    x     = "Date",
+    y     = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right")
+
+
+```
+
+
+The function returns a data frame identical in structure to the input but with two key additions:
+
+- `Diam`: replaced by the corrected diameters wherever a valid correction was performed
+
+- `corrected`: a logical flag indicating which rows were adjusted
+
+This enables downstream analyses to distinguish original measurements from model‐corrected values and to work seamlessly on large, multi‐patient cohorts.

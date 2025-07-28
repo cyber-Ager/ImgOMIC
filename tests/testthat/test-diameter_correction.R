@@ -35,7 +35,7 @@ test_that("correct_diameter_single returns expected curves and probability", {
     c(30, 35, 37, 50, 50, 52)
   )
 
-  expected_max_prob <- 0.0001081654
+  expected_max_prob <- 4.975194e-07
   expected_num_curves <- 2
 
   # Check number of curves
@@ -43,11 +43,11 @@ test_that("correct_diameter_single returns expected curves and probability", {
 
   # Check individual curves (order-insensitive)
   for (ec in expected_curves) {
-    expect_true(any(sapply(res$curves, function(rc) all(abs(rc - ec) < 1e-6))))
+    expect_true(any(sapply(res$curves, function(rc) all(abs(rc - ec) < 1e-7))))
   }
 
   # Check max_prob and num_curves
-  expect_equal(res$max_prob, expected_max_prob, tolerance = 1e-5)
+  expect_equal(res$max_prob, expected_max_prob, tolerance = 1e-7)
   expect_equal(res$num_curves, expected_num_curves)
 })
 

@@ -6,8 +6,8 @@
 \usage{
 correct_diameter_single(
   df_patient,
-  sdUS = 2,
-  sdCT = 1,
+  sdUS = 3.5,
+  sdCT = 1.9,
   sp = 4,
   dlim_sup = 1000,
   dlim_inf = 0

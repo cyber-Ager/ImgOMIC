@@ -52,6 +52,7 @@ correct_diameter_single <- function(df_patient,
     stop("Input data-frame needs more than one value to be computed.")
   }
 
+  # Check if the key columns have NA values
   if (any(is.na(df_patient$Date) |
           is.na(df_patient$CT) |
           is.na(df_patient$Diam))) {
@@ -72,6 +73,7 @@ correct_diameter_single <- function(df_patient,
 
   }
 
+  # Date can not be duplicated
   if (length(unique(df_patient$Date))!= length(df_patient$Date)){
 
     stop("Date column can not have duplicated values")
@@ -96,8 +98,8 @@ correct_diameter_single <- function(df_patient,
   # Discretize error distributions
   pUSx <- seq(-limUS, limUS, length.out = sp + 1)
   pCTx <- seq(-limCT, limCT, length.out = sp + 1)
-  pUSy <- dnorm(pUSx, 0, sdUS); pUSy <- pUSy / sum(pUSy)
-  pCTy <- dnorm(pCTx, 0, sdCT); pCTy <- pCTy / sum(pCTy)
+  pUSy <- dnorm(pUSx, 0, sdUS); #pUSy <- pUSy / sum(pUSy)
+  pCTy <- dnorm(pCTx, 0, sdCT); #pCTy <- pCTy / sum(pCTy)
 
   # Build fuzzy distributions for each time point
   dist_list <- purrr::map2(df_patient$Diam, df_patient$CT, function(diam, ct) {
@@ -125,6 +127,10 @@ correct_diameter_single <- function(df_patient,
     dt <- df_patient$Date[t] - df_patient$Date[t-1]
 
     value_list <- c(); prob_list <- c(); prev_list <- list()
+
+
+    # For loop to iterate in each probable point of the current measure
+    # with ALL the previous points
     for (j in seq_along(curr_vals)) {
       val_j <- curr_vals[j]
       prob_j <- curr_probs[j]
@@ -147,6 +153,8 @@ correct_diameter_single <- function(df_patient,
       return(NULL)
     }
 
+    # Save ll the best possibilities for each time point in a list of independent
+    # dataframes
     paths[[t]] <- data.frame(
       value    = value_list,
       prob     = prob_list,
@@ -155,9 +163,10 @@ correct_diameter_single <- function(df_patient,
   }
 
   # Backtrack all most probable curves
-  last_probs <- paths[[n]]$prob
-  max_prob   <- max(last_probs)
-  final_idxs <- which(last_probs == max_prob)
+  last_probs <- paths[[n]]$prob   # Get probabilities at the final time step
+  max_prob   <- max(last_probs) # Find the highest probability
+  final_idxs <- which(last_probs == max_prob) # Find indices that have that max prob
+
 
   build_paths <- function(t, idx) {
     if (t == 1) return(list(paths[[1]]$value[idx]))
