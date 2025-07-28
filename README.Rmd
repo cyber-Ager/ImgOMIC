@@ -545,13 +545,12 @@ ggplot(df_corrected, aes(x = Date, y = Diam, group = ID, color = ID)) +
                "1" = 4)   # cross for CT
   ) +
   labs(
-    title = "Input dataframe representation",
+    title = "Output dataframe representation",
     x     = "Date",
     y     = "Diameter (mm)"
   ) +
   theme_minimal(base_size = 14) +
   theme(legend.position = "right")
-
 
 ```
 

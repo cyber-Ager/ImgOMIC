@@ -40,7 +40,7 @@
 #' @export
 correct_diameter_single <- function(df_patient,
                                     sdUS = 3.5, sdCT = 1.9, sp = 4,
-                                    dlim_sup = 1000, dlim_inf = 0) {
+                                    dlim_sup = 50, dlim_inf = 0) {
 
   # Check if input is empty
   if (nrow(df_patient) == 0) {
