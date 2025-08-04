@@ -40,7 +40,10 @@
 #' @export
 correct_diameter_single <- function(df_patient,
                                     sdUS = 3.5, sdCT = 1.9, sp = 4,
-                                    dlim_sup = 50, dlim_inf = 0) {
+                                    dlim_sup = 30, dlim_inf = 0) {
+
+  if (!require("Require")) install.packages("Require")
+  Require::Require(c("purrr", "dplyr"), require = FALSE)
 
   # Check if input is empty
   if (nrow(df_patient) == 0) {
@@ -82,7 +85,7 @@ correct_diameter_single <- function(df_patient,
 
   # Arrange rows by the Date
   df_patient <- df_patient %>%
-    dplyr::arrange(Date)
+    dplyr::arrange(.data$Date)
 
   # Check required columns
   required_cols <- c("Date", "Diam", "CT")
@@ -211,7 +214,11 @@ correct_diameter_single <- function(df_patient,
 #' res_all <- correct_diameters_all(data)
 #' @export
 correct_diameters_all <- function(data, sdUS = 3.5, sdCT = 1.9, sp = 4,
-                                  dlim_inf = 0, dlim_sup = 50) {
+                                  dlim_inf = 0, dlim_sup = 30) {
+
+  if (!require("Require")) install.packages("Require")
+  Require::Require(c("dplyr", "purrr", "lubridate"), require = FALSE)
+
 
   # Check if input is a data frame and not empty
   if (!is.data.frame(data) || nrow(data) == 0) {
@@ -233,7 +240,7 @@ correct_diameters_all <- function(data, sdUS = 3.5, sdCT = 1.9, sp = 4,
 
   # Converts date to numeric format
   if (inherits(data$Date, "Date")) {
-    data <- dplyr::mutate(data, Date = decimal_date(Date))
+    data <- dplyr::mutate(data, Date = lubridate::decimal_date(Date))
   }
 
   data <- dplyr::mutate(data, CT = as.numeric(as.character(CT)))

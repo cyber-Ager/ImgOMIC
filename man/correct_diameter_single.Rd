@@ -9,7 +9,7 @@ correct_diameter_single(
   sdUS = 3.5,
   sdCT = 1.9,
   sp = 4,
-  dlim_sup = 1000,
+  dlim_sup = 30,
   dlim_inf = 0
 )
 }

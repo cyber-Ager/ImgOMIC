@@ -10,7 +10,7 @@ correct_diameters_all(
   sdCT = 1.9,
   sp = 4,
   dlim_inf = 0,
-  dlim_sup = 50
+  dlim_sup = 30
 )
 }
 \arguments{
