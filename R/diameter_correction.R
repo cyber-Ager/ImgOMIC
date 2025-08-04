@@ -42,8 +42,6 @@ correct_diameter_single <- function(df_patient,
                                     sdUS = 3.5, sdCT = 1.9, sp = 4,
                                     dlim_sup = 30, dlim_inf = 0) {
 
-  if (!require("Require")) install.packages("Require")
-  Require::Require(c("purrr", "dplyr"), require = FALSE)
 
   # Check if input is empty
   if (nrow(df_patient) == 0) {
@@ -82,6 +80,9 @@ correct_diameter_single <- function(df_patient,
     stop("Date column can not have duplicated values")
 
   }
+
+  # Ensure that the df_patient is a dataframe
+  df_patient <- as.data.frame(df_patient)
 
   # Arrange rows by the Date
   df_patient <- df_patient %>%
@@ -152,7 +153,7 @@ correct_diameter_single <- function(df_patient,
     }
 
     if (!length(value_list)) {
-      warning("No valid transitions at t = ", t)
+      warning(paste0("No valid transitions at t = ", t, "\n"))
       return(NULL)
     }
 
@@ -235,6 +236,9 @@ correct_diameters_all <- function(data, sdUS = 3.5, sdCT = 1.9, sp = 4,
   # Convert ID to character to forget about ghost levels
   data$ID <- as.character(data$ID)
 
+  # Ensure that data is a data.frame
+  data <- as.data.frame(data)
+
   # Save previous date
   pre_date <- data$Date
 
@@ -250,6 +254,9 @@ correct_diameters_all <- function(data, sdUS = 3.5, sdCT = 1.9, sp = 4,
   out <- data %>%
     split(.$ID) %>%
     purrr::map_dfr(function(df_patient) {
+
+      # Ensure df_patient is a dataframe
+      df_patient <- as.data.frame(df_patient, stringsAsFactors = FALSE)
 
       # Add column
       df_patient$corrected <- FALSE
@@ -267,6 +274,10 @@ correct_diameters_all <- function(data, sdUS = 3.5, sdCT = 1.9, sp = 4,
         res <- correct_diameter_single(df_valid, sdUS, sdCT, sp,
                                        dlim_inf = dlim_inf,
                                        dlim_sup = dlim_sup)
+        if (is.null(res)) {
+          warning(paste0("Patient ID: ", df_patient$ID[1], "\n"))
+          return(df_patient)  # return original unmodified data for this patient
+        }
         if (!is.null(res$curves)) {
           if (res$num_curves == 1) {
             best_curve <- res$curves[[1]]
