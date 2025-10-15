@@ -1,0 +1,917 @@
+---
+title: "ImgOMIC"
+output: github_document
+---
+
+[EU] R-ko pakete hau nire doktoretzako proiektuan erabiliko ditudan funtzioak gordetzeko sortua da. Proiektu honek irudietatik ateratako ezaugarriak zientzia omikoekin (genomika, trankriptomika, proteomika etab.) aztertzea du helburu, hortik ImgOMIC izena.
+
+[EN] This package was created to compile the necessary functions for analyzing medical imaging phenotypes alongside OMIC data. It provides functions for the complete analysis workflow, from data preprocessing to building associative models.
+
+## Precision Calculation
+
+In most cases, when working with microarrays for the quantification of miRNA, RNA, or protein presence, duplicates are used. These duplicates help reduce measurement variability by averaging the two results. Additionally, they allow for quantifying variability and determining the precision of the measuring equipment. Measuring precision is crucial to understanding the variability of measurements, ensuring that the associations we identify are robust and reliable.
+
+### Measure precision
+
+This function is based on the 2009 article [_"Estimating Precision Using Duplicate Measurements"_ by **Nicole Pauly Hyslop and Warren H. White**](https://www.tandfonline.com/doi/abs/10.3155/1047-3289.59.9.1032). 
+
+The function's goal is to quantify the precision of each "sensor" used to detect the presence of a given particle. For instance, in miRNA detection using qPCR in a microarray, the "sensor" corresponds to the different miRNAs. Even if the same sample is introduced into every well, each well emits fluorescent light based on the presence of a specific miRNA, as the "sensor mechanisms" (e.g., stem-loop primers) differ for each miRNA. The measurement variability for each miRNA can differ, but this variability is assessable using duplicates.
+
+The `measure_precision()` function computes precision using the Root Mean Square (RMS) and Mean Absolute Difference (MAD). The equations used are as follows: 
+
+$$
+D_1 = \frac{(C_{i1}-C_{i2})/\sqrt{2}}{\bar{C_{i}}}
+$$
+
+$$
+\text{RMS Precision} = \sqrt{\frac{1}{n}\sum_{i = 1}^{n}D_i^2}\times100\%
+$$
+
+$$
+\text{MAD Precision} = \sqrt{\frac{\pi}{2}}\frac{1}{n}\sum_{i = 1}^{n}|D_i|\times100\%
+$$
+
+The function calculates precision as relative values because, in most microarray or similar techniques, the absolute error is proportional to the particle's absolute presence. For this reason, results are expressed as percentages (%).
+
+#### Example:
+
+The input dataset should have the following structure: 
+
+A dataframe with columns: `ID` (unique ID for each duplicate sample), `sensor` (type of sensor), and `measurements` (measurement results). The structure is illustrated below:
+
+```{r}
+#| label: tbl-input_table
+#| tbl-cap: "First view of Input data table."
+#| warning: false
+#| 
+# Load the testing data
+df_test <- read.table("../README_data/Tutorial_table.csv", header = TRUE, sep = ",")
+
+knitr::kable(head(df_test))
+```
+
+Once the data is properly loaded, the function can be applied. By default, it generates graphical outputs (in the case we don't wnat them `img`= FALSE):
+
+```{r}
+tb_output <- ImgOMIC::measure_precision(df_test)
+```
+These plots display the absolute differences between duplicates for each sensor or particle type. They help analyze the distribution of measurement variability and better understand precision values.
+
+```{r}
+library(dplyr)
+colnames(tb_output)
+```
+
+The output table includes the following columns: sensor, data, RMS, MAD and n_precision.
+
+```{r}
+knitr::kable(tb_output%>%dplyr::select(-data))
+```
+The `RMS` and `MAD` columns represent the precision of each sensor, calculated using different techniques. Both values are expressed as percentages (%) and represent the variability or uncertainty of a single measurement. For example, sensor s1 has a precision of 9-13%, meaning that any measurement with this sensor will likely have a real value within ±13% of the measured value. Lower values indicate better precision.
+
+The function calculates two types of precision due to their differing sensitivity to input data characteristics. Depending on the use case, one might prefer one method over the other:
+
+  - RMS Precision is more sensitive to outliers (e.g., as seen with sensor s2) and is useful when penalizing outliers is important.
+  - MAD Precision is less sensitive to outliers, making it a better representation of overall data behavior in most cases.
+
+The `n_precision` column indicates the number of samples used to compute the precision. Finally, the `data` column contains a tibble with the measurements used for calculating precision values for each case:
+
+```{r}
+
+knitr::kable(head(tb_output$data[[1]]))
+
+```
+Each of the rows of `data` dataset represent one sample. The `diff` value represent the difference between the sample duplicates, ̀`mn` column determines the average value between the duplicates, and the `n` column the number of copies that have been use to calculate the values (2 in the case of duplicates, 3 in the case of triplicates etc.)
+
+### Error propagation
+
+The error propagation function complements the previous precision calculation function. In some cases, the final value used in the analysis is derived from a combination of measurements obtained from different sensors. The `error_propagation` function calculates both the final value and its associated error based on the provided precision values. 
+
+The error propagation is computed using the following formula:
+
+$$\epsilon_{f_{norm}} = \sqrt{\sum_{i = 1}^{n}\left( \frac{\partial f}{\partial s_{i}} \cdot \epsilon_{s_{i}} \right)^2}$$
+
+
+Here, the influence of each sensor measurement on the final result is determined by calculating the partial derivative of the normalization formula with respect to that specific sensor. This helps us assess how a unitary change in a variable would impact the final result. Each partial derivative is then multiplied by the error value of that measurement. The overall error is derived from the Euclidean norm of these independent contributions, calculated as the root of the sum of squares of individual error contributions.
+
+#### Example:
+
+For this function, it is necessary to define:
+
+  - The expression used to calculate the final measure (`fun`), and
+  - The table containing the data used for the calculation (`tb`).
+
+For example, suppose the desired final measure is computed using the following equation:
+
+$$
+f_{norm} = \frac{s_{1}}{s_{2}}
+$$
+
+In this case, `fun`should be defined as follows:
+
+```{r}
+fun <- expression(s1/s2)
+```
+
+It is important to ensure that the variable names in the function match the `sensor` names in the input table.
+
+For the data table, we can use the output from the `measure_precision` function, with one modification: renaming the desired precision column (`RMS` or `MAD`) to `err`. For instance:
+
+```{r}
+tb_input <- tb_output 
+tb_input$err <- tb_input$MAD
+```
+
+Here, we assign the `MAD` precision values to the `err` column. Once this is done, the function can be applied:
+
+```{r}
+norm_val <- ImgOMIC::error_propagation(tb_input, fun)
+
+knitr::kable(head(norm_val))
+```
+
+The output is a dataframe containing two columns:
+
+  - `measure`: The desired measurement value, calculated from the defined expression.
+  - `error`: The absolute value of the propagated error associated with the `measure` value.
+  
+## Diameter correction
+
+The **maximum transverse diameter** is currently the gold standard for monitoring **abdominal aortic aneurysms (AAA)** and other types of aneurysms. Consequently, this measurement is commonly used to assess aneurysm growth over time. However, the maximum diameter is subject to **inherent measurement errors** that vary depending on the imaging technique; typically **Ultrasound (US)** or **CT scans**.
+
+These technical inaccuracies can produce **implausible growth patterns**, such as sudden jumps or decreases in aneurysm size, which are not physiologically realistic. Such anomalies significantly hinder accurate growth assessments and may bias research outcomes.
+
+To address this, we have developed a set of R functions that **correct diameter measurements** by accounting for **modality-specific measurement errors**. Leveraging a probabilistic model and a dynamic programming approach, the functions transform noisy longitudinal data into realistic, monotonically increasing growth trajectories. The tools support both **single-patient** and **multi-patient** datasets and are ideal for use in clinical research or modeling applications where precise aneurysm progression estimates are critical.
+
+By default, the functions use standard deviation values for US and CT derived from AAA-specific studies. These defaults can be adjusted to accommodate research involving other types of aneurysms:
+
+- CT standard deviation: [J.J Wever et al., AJR, 2012](https://ajronline.org/doi/10.2214/ajr.175.5.1751279?utm_source=chatgpt.com)
+- US standard deviation: [Q. M. Ghulam et al., ESVS, 2017](https://pubmed.ncbi.nlm.nih.gov/28765014/)
+
+### Correct diameters for a single Patient
+
+#### Function Overview
+
+The function `correct_diameter_single()` corrects diameter values for a single patient. The input data include the diameter progression over time and the type of imaging technique, which is specified in the `CT` column.
+
+The columns of the input dataset are described in the following table:
+
+```{r}
+#| echo = FALSE
+
+input_columns <- data.frame(
+  Column = c("Date", "Diameter", "CT"),
+  Description = c("Date of the measurement", "Measured aortic diameter", "Imaging modality"),
+  Values = c("Numeric Year. E.j. 2023.5", "Numeric (mm)", "1 = CT; 0 = US")
+)
+
+knitr::kable(input_columns, caption = "Input dataset columns")
+```
+
+In addition to this dataframe, the function also requires the definition of two parameters: `dlim_sup` and `dlim_inf`. These represent the upper and lower bounds of diameter change over time that are considered realistic. For example, since we know that abdominal aortic aneurysms (AAA) tend to grow rather than shrink, we might consider a negative change impossible. Similarly, we might assume that a growth of more than 30 mm per year is not plausible. In this case, we would set `dlim_inf = 0` and `dlim_sup = 30`.
+
+#### Measurement Precision
+
+The core idea of the function is to treat each diameter measurement not as a single fixed value, but as a probability distribution that reflects measurement uncertainty. This distribution is modeled as a normal distribution centered at the measured value, with a standard deviation determined by the imaging modality.
+
+This distribution is discretized into a number of points (defined by the variable `sp`) to approximate the uncertainty.
+
+```{r}
+#| echo = FALSE
+
+
+# Load required package
+library(ggplot2)
+
+# Define parameters
+sdUS <- 3.5
+sdCT <- 1.9
+sp   <- 8
+
+# Compute limits
+limUS <- 3 * sdUS
+limCT <- 3 * sdCT
+
+# Discretized x-points
+pUSx <- seq(-limUS, limUS, length.out = sp + 1)
+pCTx <- seq(-limCT, limCT, length.out = sp + 1)
+
+# Discretized y-points (densities, normalized)
+pUSy <- dnorm(pUSx, 0, sdUS); #pUSy <- pUSy / sum(pUSy)
+pCTy <- dnorm(pCTx, 0, sdCT); #pCTy <- pCTy / sum(pCTy)
+
+# Create a data frame for plotting the full normal curves
+curve_data <- data.frame(
+  x = seq(-max(limUS, limCT) * 1.1, max(limUS, limCT) * 1.1, length.out = 1000)
+)
+curve_data$US <- dnorm(curve_data$x, 0, sdUS)
+curve_data$CT <- dnorm(curve_data$x, 0, sdCT)
+
+# Create data frame for discretized points
+points_data <- data.frame(
+  x     = c(pUSx, pCTx),
+  y     = c(pUSy, pCTy),
+  group = rep(c("US", "CT"), each = length(pUSx))
+)
+
+
+# Plot
+ggplot() +
+  geom_line(data = curve_data, aes(x = x, y = US), color = "#4cd964", linewidth = 1) +
+  coord_cartesian(ylim = c(0, max(curve_data$CT) *1.3)) +  # adjust the limits as needed
+  geom_line(data = curve_data, aes(x = x, y = CT), color = "#007aff", linewidth = 1) +
+  geom_point(data = points_data, aes(x = x, y = y, color = group), size = 3) +
+  scale_color_manual(values = c("US" = "#4cd964", "CT" = "#007aff")) +
+  # Add vertical lines at ±1 SD
+  geom_vline(xintercept = c(-sdUS, sdUS), linetype = "dashed", color = "#4cd964") +
+  geom_vline(xintercept = c(-sdCT, sdCT), linetype = "dashed", color = "#007aff") +
+  # Add SD annotations
+  annotate("text", x = sdUS - 0.35, y = max(curve_data$CT), label = paste0("US SD: ", sdUS), color = "black", hjust = 0, angle = 90, size = 3.5) +
+  annotate("text", x = sdCT - 0.35, y = max(curve_data$CT), label = paste0("CT SD: ", sdCT), color = "black", hjust = 0, angle = 90, size = 3.5) +
+  labs(title = "Discretization of Normal Distributions (US vs CT)",
+       x = "Error (mm)",
+       y = "Normalized Probability",
+       color = "Imaging Modality") +
+  theme_minimal()
+```
+
+#### Curve Correction Logic
+
+The function `correct_diameter_single` builds a list of all possible diameter values over time based on the discretized distributions. Then, using a Viterbi-like algorithm, it finds the most probable predecessor diameter for each point in the time series. Only transitions within the limits defined by `dlim_inf` and `dlim_sup` are considered valid.
+
+Once the most probable predecessors are found for each time point, the algorithm **backtracks** through the list to reconstruct the curve(s) with the highest probability of being true. If there is more than one path with equal maximum probability, all such curves are returned.
+
+
+```{r, message=FALSE}
+
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+devtools::load_all()
+
+# Patient dataframe
+df_patient <- data.frame(
+  ID = as.factor(c("1", "1", "1", "1", "1", "1", "1", "1", "1")),
+  Date = c(2015, 2016, 2017, 2020, 2021, 2022.5, 2023, 2024, 2025),
+  Diam = c(30, 35, 34, 53, 50, 54, 53, 55, 58),
+  CT = as.factor(c(1, 0, 0, 1, 0, 0, 0, 0, 1))
+)
+
+# Correct the df_patient
+corrected_result <- ImgOMIC::correct_diameter_single(df_patient, sp = 8)
+
+# Select the first corrected curve (if more than one)
+corrected_curve <- corrected_result$curves[[1]]
+```
+
+
+```{r, message=FALSE}
+#| echo = FALSE
+
+corrected_dates <- corrected_result$dates
+
+# Assume df_patient and corrected_result are already in your environment:
+# df_patient: data.frame with columns Date, Diameter, CT (TRUE = CT, FALSE = US)
+# corrected_result <- correct_diameter_single(df_patient, dlim_inf = 0, dlim_sup = 30)
+# corrected_result$curves[[1]] is the first corrected curve
+
+# Parameters
+sdUS <- 3.5
+sdCT <- 1.9
+sp   <- 8
+
+# Precompute discretization grids
+limUS <- 3 * sdUS
+limCT <- 3 * sdCT
+pUSx  <- seq(-limUS, limUS, length.out = sp + 1)
+pCTx  <- seq(-limCT, limCT, length.out = sp + 1)
+pUSy  <- dnorm(pUSx, 0, sdUS)
+pCTy  <- dnorm(pCTx, 0, sdCT)
+
+# Build a data.frame of probability grids for each time point
+prob_grid <- lapply(seq_len(nrow(df_patient)), function(i) {
+  diam  <- df_patient$Diam[i]
+  date  <- df_patient$Date[i]
+  isCT  <- df_patient$CT[i] == 1
+  
+  if (isCT) {
+    x_offsets <- pCTx
+    probs     <- pCTy
+  } else {
+    x_offsets <- pUSx
+    probs     <- pUSy
+  }
+  
+  
+  data.frame(
+    Date     = date,
+    Value    = diam + x_offsets,
+    Probability = probs
+  )
+})
+
+prob_df <- bind_rows(prob_grid)
+
+# Extract corrected curve
+corrected_df <- data.frame(
+  Date      = corrected_result$dates,
+  Corrected = corrected_result$curves[[1]]
+)
+
+
+# Combine observed
+obs_df <- df_patient %>% select(Date, Observed = Diam)
+
+# # Plot everything
+ggplot() +
+  # probable points
+  geom_point(data = prob_df,
+             aes(x = Date, y = Value, color = Probability),
+             size = 3, alpha = 0.8) +
+  scale_color_gradient(low = "lightblue", high = "darkblue", name = "Prob.") +
+
+  # observed
+  geom_line(data = obs_df,
+            aes(x = Date, y = Observed),
+            color = "black", linetype = "dotted", linewidth = 1) +
+
+  # corrected
+  geom_line(data = corrected_df,
+            aes(x = Date, y = Corrected),
+            color = "#E91E63", linewidth = 1.2, alpha = 0.7) +
+
+  labs(title = "Diameter Progression: Observed vs Corrected",
+       x     = "Date (years)",
+       y     = "Diameter (mm)",
+       caption = "• Black dotted = Observed\n• Pink solid = Corrected\n• Blue dots = Probable points") +
+  theme_minimal()
+
+
+```
+
+
+#### Output
+
+The output of the function is a list with the following elements:
+
+- `curves`: A list of diameter progressions with the most probable values.
+- `dates`: The original input dates, ordered in ascending time.
+- `max_prob`: The maximum probability associated with the returned curves.
+- `num_curves`: The number of most-probable diameter progression curves returned.
+
+### Correct diameters in a longitudinal dataframe
+
+#### Function Overview
+
+The function `correct_diameters_all` applies the single‐patient correction to every individual in a longitudinal dataset. It takes as input a data frame with at least the following columns:
+
+- `ID` : patient identifier
+
+- `Date` : measurement time (either a decimal year or a Date object)
+
+- `Diam` : observed maximum transverse diameter (mm)
+
+- `CT` : imaging modality indicator (1 = CT, 0 = US)
+
+Five tuning parameters control the correction:
+
+- `sdUS`, `sdCT` : measurement‐error standard deviations for US and CT
+
+- `sp` : number of discretization points per measurement
+
+- `dlim_inf` : minimum permissible diameter change per year
+
+- `dlim_sup` : maximum permissible diameter change per year
+
+
+
+#### Processing Steps
+
+```{r}
+
+library(dplyr)
+library(ggplot2)
+library(lubridate)
+
+#devtools::load_all()
+
+# 1. Manually create raw data for 5 patients
+df_raw <- data.frame(
+  ID = rep(as.character(1:5), each = 6),
+  Date = as.Date(c(
+    # Patient 1
+    "2016-01-15", "2017-03-10", "2018-06-20", "2019-09-05", "2020-12-01", "2022-02-14",
+    # Patient 2
+    "2015-05-01", "2016-07-12", "2017-11-30", "2019-04-25", "2020-08-19", "2021-10-10",
+    # Patient 3
+    "2017-02-20", "2018-05-15", "2019-08-08", "2020-10-30", "2022-01-01", "2023-03-20",
+    # Patient 4
+    "2015-12-05", "2016-12-05", "2018-01-10", "2019-03-15", "2020-05-20", "2021-07-25",
+    # Patient 5
+    "2016-04-10", "2017-09-18", "2018-12-22", "2020-02-28", "2021-06-06", "2022-11-11"
+  )),
+  Diam = c(
+    # P1
+    30, 32, 37, 35, 33, 42,
+    # P2
+    25, 28, 30, 29, 35, 38,
+    # P3
+    40, 47, 45, 47, 54, 52,
+    # P4
+    20, 22, 28, 27, 29, 31,
+    # P5
+    33, 34, 36, 50, 49, 44
+  ),
+  CT = c(
+    # P1
+    1, 0, 0, 1, 0, 1,
+    # P2
+    0, 0, 1, 0, 1, 0,
+    # P3
+    1, 1, 0, 0, 1, 0,
+    # P4
+    0, 1, 0, 1, 0, 1,
+    # P5
+    1, 0, 1, 0, 1, 0
+  )
+)
+```
+
+
+```{r}
+#| echo = FALSE
+
+
+# 1) Input dataframe
+ggplot(df_raw, aes(x = Date, y = Diam, group = ID, color = ID)) +
+  geom_line(linewidth = 1) +
+  geom_point(aes(shape = factor(CT)), size = 3, fill = "white") +
+  scale_shape_manual(
+    name   = "CT",
+    values = c("0" = 16,  # circle for US
+               "1" = 4)   # cross for CT
+  ) +
+  labs(
+    title = "Input dataframe representation",
+    x     = "Date",
+    y     = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right")
+
+```
+
+1 - **Input validation**
+
+- The function first checks that the input is a non‐empty data frame containing all required columns.
+
+- Any missing or `NA` values in `Date`, `Diam`, or `CT` are excluded from correction.
+
+2 - **Type conversion**
+
+- `ID` is coerced to character to avoid factor‐level issues.
+
+- If `Date` is a `Date` object, it is converted to a decimal‐year numeric.
+
+- `CT` need to have only `0` and `1` values.
+
+3 - **Per‐patient correction**
+
+- The data frame is split by `ID` and processed patient by patient.
+
+- For each patient with at least two valid measurements, `correct_diameter_single()` is called with the specified `sdUS`, `sdCT`, `sp`, `dlim_inf`, and `dlim_sup`.
+
+- If only one most‐probable curve is returned, it replaces the original diameters.
+
+- If multiple equally probable curves exist, their elementwise average is taken as the “best” corrected trajectory.
+
+4 - **Flagging and reassembly**
+
+- A new logical column `corrected` is added: `TRUE` for those rows whose diameters were adjusted, FALSE otherwise.
+
+- All patient subsets are re‐combined in their original order and the original `Date` format is restored.
+
+#### Output
+
+```{r, warning = FALSE, message = FALSE}
+# 2. Apply multi‐patient correction
+df_corrected <- correct_diameters_all(
+  df_raw,
+  sdUS     = 3.5,
+  sdCT     = 1.9,
+  sp       = 10,
+  dlim_inf = 0,
+  dlim_sup = 30
+)
+```
+
+
+```{r, warning = FALSE, message = FALSE, echo = FALSE}
+# 3. Prepare for plotting: merge raw and corrected diameters
+plot_df <- df_corrected %>%
+  select(ID, Date, Diam_corrected = Diam, corrected) %>%
+  left_join(df_raw %>% rename(Diam_raw = Diam), by = c("ID", "Date")) %>%
+  tidyr::pivot_longer(
+    cols        = c(Diam_raw, Diam_corrected),
+    names_to    = "Type",
+    values_to   = "Diameter",
+    names_ptypes = list(Type = factor(levels = c("Diam_raw", "Diam_corrected")))
+  )
+
+# 4. Plot: raw in grey, corrected in pink, faceted by patient
+ggplot(plot_df, aes(x = Date, y = Diameter, color = Type)) +
+  geom_point(alpha = 0.6) +
+  geom_line(aes(group = interaction(ID, Type)), alpha = 0.8)+
+  coord_cartesian(ylim = c(20, 60))+ 
+  
+  scale_color_manual(
+    values = c(
+      "Diam_raw"        = "grey70",
+      "Diam_corrected"  = "#E91E63"
+    ),
+    labels = c(
+      "Raw measurements",
+      "Corrected measurements"
+    ),
+    name = NULL
+  ) +
+  
+  facet_wrap(~ ID, scales = "free_y", ncol = 5) +
+  labs(
+    title   = "Raw vs. Corrected Aneurysm Diameter Trajectories",
+    x       = "Date",
+    y       = "Diameter (mm)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    strip.text      = element_text(face = "bold")
+  )
+
+ggplot(df_corrected, aes(x = Date, y = Diam, group = ID, color = ID)) +
+  geom_line(linewidth = 1) +
+  geom_point(aes(shape = factor(CT)), size = 3, fill = "white") +
+  scale_shape_manual(
+    name   = "CT",
+    values = c("0" = 16,  # circle for US
+               "1" = 4)   # cross for CT
+  ) +
+  labs(
+    title = "Output dataframe representation",
+    x     = "Date",
+    y     = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "right")
+
+```
+
+
+The function returns a data frame identical in structure to the input but with two key additions:
+
+- `Diam`: replaced by the corrected diameters wherever a valid correction was performed
+
+- `corrected`: a logical flag indicating which rows were adjusted
+
+This enables downstream analyses to distinguish original measurements from model‐corrected values and to work seamlessly on large, multi‐patient cohorts.
+
+
+### Estimate measurement uncertainty by Monte Carlo simulation
+
+#### Function Overview
+
+The function `simulate_function_sd()` performs a **Monte Carlo simulation** to estimate  
+the uncertainty (variability) of a numeric statistic derived from longitudinal  
+diameter measurements for a *single patient*.  
+
+By incorporating modality-specific measurement error (Ultrasound vs. CT), the  
+function provides an individualized estimate of how reliable the measurements are  
+for each patient.  
+This helps differentiate which patient trajectories are more uncertain due to  
+measurement noise, allowing a fairer interpretation of growth trends and  
+highlighting which measurements have a higher standard deviation (sd).
+
+#### Required Input
+
+A single-patient `data.frame` containing:
+
+- `Date` : numeric time points (e.g. decimal years or day index)  
+- `Diam` : observed maximum diameter (mm)  
+- `CT`   : imaging modality indicator (`1 = CT`, `0 = US`)
+
+#### Optional Parameters
+
+- `FUN` : user-defined function of the form `FUN(Date, Diam)` returning a single numeric scalar.  
+  If `NULL`, it defaults to the **slope** of a linear regression (`Diam ~ Date`).
+
+- `sdUS`, `sdCT` : measurement-error standard deviations for Ultrasound and CT (default: 3.5 and 1.9).  
+
+- `n_sim` : number of Monte Carlo simulations (default: 100).  
+
+- `seed` : random seed for reproducibility.  
+
+- `min_diam`, `max_diam` : physically plausible limits for simulated diameters (default: 15 and 150 mm).  
+
+---
+
+#### Example Workflow
+
+```{r}
+library(ggplot2)
+library(dplyr)
+# devtools::load_all()  # if running from within your package source
+
+# 1. Simulate longitudinal data for one patient
+df_patient <- data.frame(
+  Date = c(2016, 2017, 2018, 2019, 2020),
+  Diam = c(30, 33, 35, 36, 39),
+  CT   = c(1, 0, 1, 0, 1)
+)
+```
+
+
+```{r}
+#| echo = FALSE
+# 2. Visualize observed diameters
+ggplot(df_patient, aes(x = Date, y = Diam)) +
+  geom_line(linewidth = 1.2, color = "#2196F3") +
+  geom_point(aes(shape = factor(CT)), size = 3, color = "black", fill = "white") +
+  scale_shape_manual(
+    name   = "CT",
+    values = c("0" = 16, "1" = 4),
+    labels = c("US", "CT")
+  ) +
+  labs(
+    title = "Observed patient diameters by imaging modality",
+    x     = "Year",
+    y     = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+---
+
+#### Processing Steps
+
+1. **Input validation**
+
+   - Checks that the input is a valid data frame with columns `Date`, `Diam`, and `CT`.  
+   - Ensures `Date` and `Diam` are numeric and that `CT` contains only `0` or `1`.
+
+2. **Statistic definition (`FUN`)**
+
+   - If no custom function is supplied, defaults to computing the slope of a linear regression (`Diam ~ Date`).  
+   - User-defined functions must take **exactly two numeric vectors** and return **a single numeric value**.
+
+3. **Monte Carlo simulation**
+
+   - For each iteration, new diameters are sampled from normal distributions centered on the observed values,  
+     with standard deviations determined by imaging modality (`sdUS` or `sdCT`).  
+   - Simulated diameters are truncated within the range `[min_diam, max_diam]`.  
+   - The chosen statistic is recalculated for each simulated dataset.
+
+4. **Result aggregation**
+
+   - Simulations producing invalid or non-finite results are discarded.  
+   - Warnings are issued if any simulation fails.  
+   - The function returns the mean and standard deviation of valid simulations.
+
+---
+
+#### Example Outputs
+
+
+```{r}
+
+# 3. Run simulation with default slope-based statistic
+res_default <- simulate_function_sd(df_patient, n_sim = 1000, seed = 42)
+res_default
+
+# 4. Custom statistic: mean diameter
+res_mean <- simulate_function_sd(df_patient, FUN = function(d, x) mean(x),
+                                 n_sim = 1000, seed = 42)
+res_mean
+
+
+```
+
+
+---
+
+#### Interpretation
+
+The next visualization panels illustrate how patient-specific measurement reliability can differ dramatically depending on the number of observations and the imaging modalities used.
+
+```{r}
+#| echo = FALSE
+library(ggplot2)
+library(dplyr)
+library(patchwork)
+
+#devtools::load_all()
+
+set.seed(123)
+
+# --- 1. Generate exaggerated synthetic patients --------------------------------
+
+# Patient A: many time points
+patientA <- data.frame(
+  ID = "A",
+  Date = seq(2015, 2025, by = 1),
+  Diam = cumsum(rnorm(11, mean = 2.5, sd = 1)) + 30,
+  CT   = sample(c(0, 1), 11, replace = TRUE)
+)
+
+# Patient B: very few time points (3)
+patientB <- data.frame(
+  ID = "B",
+  Date = c(2016, 2017, 2019),
+  Diam = c(30, 32, 34),
+  CT   = sample(c(0, 1), 3, replace = TRUE)
+)
+
+df_all <- bind_rows(patientA, patientB)
+
+# --- 2. Define slope function ---------------------------------------------------
+
+vel_fun <- function(dates, diams) {
+  if (length(unique(dates)) <= 1 || length(unique(diams)) <= 1) return(NA_real_)
+  fit <- lm(diams ~ dates)
+  coef(fit)[["dates"]]
+}
+
+# --- 3. Compute slopes via simulation (n_sim = 7) ------------------------------
+
+simA <- lapply(1:7, function(seed)
+  simulate_function_sd(patientA, FUN = vel_fun, n_sim = 1, seed = seed)
+)
+
+simB <- lapply(1:7, function(seed)
+  simulate_function_sd(patientB, FUN = vel_fun, n_sim = 1, seed = seed)
+)
+
+# Extract slopes
+velsA <- sapply(simA, `[[`, "mean")
+velsB <- sapply(simB, `[[`, "mean")
+
+# --- 4. Plot 1: Combined patient trajectories ----------------------------------
+
+# Define line colors for each patient
+df_all <- df_all %>%
+  mutate(line_color = ifelse(ID == "A", "#3F51B5", "#E91E63"))
+
+p1 <- ggplot(df_all, aes(x = Date, y = Diam, group = ID)) +
+  geom_line(aes(color = line_color), linewidth = 1) +
+  geom_point(aes(shape = factor(CT), color = line_color), size = 3, fill = "white") +
+  scale_color_identity() +  # use actual color values
+  scale_shape_manual(
+    name = "CT",
+    values = c("0" = 16,  # circle for US
+               "1" = 4)   # cross for CT
+  ) +
+  labs(
+    title = "Patient trajectories with modality markers",
+    subtitle = "Patient A (dense) vs Patient B (sparse)",
+    x = "Date",
+    y = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "bottom")
+
+# --- 5. Plot 2: Slopes as straight lines with points ----------------------------
+
+# Function to generate lines based on slope for plotting
+generate_lines <- function(df_patient, slopes) {
+  do.call(rbind, lapply(slopes, function(slope) {
+    data.frame(
+      Date = df_patient$Date,
+      Diam_line = df_patient$Diam[1] + slope * (df_patient$Date - df_patient$Date[1]),
+      Simulation = paste0("sim_", round(slope,2))
+    )
+  }))
+}
+
+linesA <- generate_lines(patientA, velsA)
+linesA$ID <- "A"
+
+linesB <- generate_lines(patientB, velsB)
+linesB$ID <- "B"
+
+# Determine common x and y limits
+x_limits <- range(c(patientA$Date, patientB$Date))
+y_limits <- range(c(patientA$Diam, patientB$Diam, linesA$Diam_line, linesB$Diam_line))
+
+# Plot Patient A
+pA <- ggplot() +
+  geom_point(data = patientA, aes(x = Date, y = Diam), color = "#3F51B5", size = 3) +
+  geom_line(data = linesA, aes(x = Date, y = Diam_line, group = Simulation), color = "#3F51B5", alpha = 0.6) +
+  labs(title = "Patient A (many time points)", x = "Date", y = "Diameter (mm)") +
+  coord_cartesian(xlim = x_limits, ylim = y_limits) +
+  theme_minimal(base_size = 14)
+
+# Plot Patient B
+pB <- ggplot() +
+  geom_point(data = patientB, aes(x = Date, y = Diam), color = "#E91E63", size = 3) +
+  geom_line(data = linesB, aes(x = Date, y = Diam_line, group = Simulation), color = "#E91E63", alpha = 0.6) +
+  labs(title = "Patient B (3 time points)", x = "Date", y = "Diameter (mm)") +
+  coord_cartesian(xlim = x_limits, ylim = y_limits) +
+  theme_minimal(base_size = 14)
+
+# Combine slope plots side by side
+p2 <- pA + pB + plot_annotation(title = "Simulated slopes (velocity) for each patient")
+
+# --- 6. Display plots ----------------------------------------------------------
+
+p1
+```
+
+
+This plot shows the actual measured diameters over time for two patients:  
+- Patient A (blue) has a dense series of measurements, providing a smooth and relatively reliable trajectory.  
+- Patient B (pink) has only 3 measurements, making the observed trend more uncertain.  
+The type of measurement (Ultrasound vs. CT) is indicated by points, which already hints at differences in measurement precision.
+  
+
+```{r}
+#| echo = FALSE
+p2
+```
+
+
+Each line represents a possible slope (growth rate) taking into account the variability of diameter measures taken from CT and US.
+
+- For Patient A, the slopes are tightly clustered, reflecting that a higher number of measurements and mixed modalities lead to a smaller variability in estimated growth rates.  
+- For Patient B, the slopes vary considerably, demonstrating that fewer time points produce greater uncertainty in the estimated slope.
+
+In the case of patient B there are no enough time points to trully now how its evolution would be:
+
+
+```{r}
+#| echo = FALSE
+
+# Patient B
+patientB <- data.frame(
+  ID = "B",
+  Date = c(2016, 2017, 2019),
+  Diam = c(30, 32, 34),
+  CT   = c(0, 0, 0)
+)
+
+# Patient B1
+patientB1 <- data.frame(
+  ID = "B1",
+  Date = c(2016, 2017, 2019, 2020, 2021, 2022),
+  Diam = c(30, 32, 34, 36, 42, 52),
+  CT   = c(0, 0, 0, 0, 0, 0)
+)
+
+# Patient B2
+patientB2 <- data.frame(
+  ID = "B2",
+  Date = c(2016, 2017, 2019, 2020, 2021, 2022),
+  Diam = c(30, 32, 34, 33, 35, 34),
+  CT   = c(0, 0, 0, 0, 0, 0)
+)
+
+# Combine all
+df_all <- bind_rows(patientB, patientB1, patientB2)
+
+# Define line type per patient
+df_all <- df_all %>%
+  mutate(
+    line_type = ifelse(ID == "B", "solid", "dashed")
+  )
+
+# Plot
+ggplot(df_all, aes(x = Date, y = Diam, color = ID, group = ID)) +
+  geom_line(aes(linetype = line_type), color = "#E91E63", linewidth = 1) +
+  geom_point(aes(shape = factor(CT)), color = "#E91E63", size = 3, fill = "white") +
+  scale_linetype_identity() + # use the line_type column directly
+  labs(
+    title = "Possible future trajectories for B",
+    subtitle = "Current points solid, future dashed",
+    x = "Date",
+    y = "Diameter (mm)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+
+```
+
+
+These plots collectively illustrate the **importance of incorporating measurement variability (sd) into analyses**:
+
+1. **Unequal reliability across patients**  
+   Not all patients’ data carry the same weight. Patients with many precise measurements (small sd) provide more reliable estimates of growth, while patients with less measurements (large sd) contribute less certain information.
+
+2. **Weighting by standard deviation**  
+   When performing downstream analyses — e.g., combining growth estimates across patients — it is crucial to **weight each patient’s contribution by the inverse of their sd**.  
+   Ignoring these differences would treat all patients equally, potentially biasing results due to patients with sparse or unreliable data.
+
+3. **Quantifying uncertainty for decision making**  
+   The second plot makes it visually apparent how much the estimated slope can vary due to measurement noise.  
+   By computing the standard deviation of these simulations, researchers can take the variability into account in order to train **higher quality predictive models**, taking into account the confidence in each patient’s growth estimate.
+
+**In summary:** This example clearly demonstrates that the number of measurements and measurement modality affect the precision of estimated patient trajectories. Using `simulate_function_sd()` to compute patient-specific standard deviations allows downstream analyses to properly account for these differences, ensuring that **more reliable measurements are appropriately weighted**, and that patients with fewer or noisier measurements do not disproportionately influence the results.
