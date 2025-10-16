@@ -1,13 +1,15 @@
 ImgOMIC
 ================
 
-<img src="logo/ImgOMIClogo.png" alt="ImgOMIC Logo" width="250" align="right"/>
-
-**ImgOMIC** is an R package designed to analyze medical imaging
-phenotypes together with OMIC data (genomics, transcriptomics,
-proteomics, etc.).  
-It provides functions for data preprocessing, error correction,
-precision analysis, and longitudinal modeling.
+<p align="center">
+<img src="logo/ImgOMIClogo.png" alt="ImgOMIC Logo" width="320"/>
+</p>
+<p align="center">
+<strong>ImgOMIC</strong> is an R package designed to analyze medical
+imaging phenotypes together with OMIC data (genomics, transcriptomics,
+proteomics, etc.). It provides functions for data preprocessing, error
+correction, precision analysis, and longitudinal modeling.
+</p>
 
 ------------------------------------------------------------------------
 
