@@ -3,7 +3,6 @@ title: "ImgOMIC"
 output: github_document
 ---
 
-# ImgOMIC
 
 [EU] R-ko pakete hau nire doktoretzako proiektuan erabiliko ditudan funtzioak gordetzeko sortua da. Proiektu honek irudietatik ateratako ezaugarriak zientzia omikoekin (genomika, trankriptomika, proteomika etab.) aztertzea du helburu, hortik ImgOMIC izena.
 
@@ -87,7 +86,7 @@ Each of the rows of `data` dataset represent one sample. The `diff` value repres
 
 ### Error propagation
 
-The error propagation function complements the previous precision calculation function. In some cases, the final value used in the analysis is derived from a combination of measurements obtained from different sensors. The `error_propagation` function calculates both the final value and its associated error based on the provided precision values. 
+The error propagation function complements the previous precision calculation function. In some cases, the final value used in the analysis is derived from a combination of measurements obtained from different sensors. The `error_propagation()` function calculates both the final value and its associated error based on the provided precision values. 
 
 The error propagation is computed using the following formula:
 

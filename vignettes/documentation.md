@@ -238,8 +238,8 @@ column the number of copies that have been use to calculate the values
 The error propagation function complements the previous precision
 calculation function. In some cases, the final value used in the
 analysis is derived from a combination of measurements obtained from
-different sensors. The `error_propagation` function calculates both the
-final value and its associated error based on the provided precision
+different sensors. The `error_propagation()` function calculates both
+the final value and its associated error based on the provided precision
 values.
 
 The error propagation is computed using the following formula:
