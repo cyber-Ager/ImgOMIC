@@ -1,23 +1,13 @@
 ImgOMIC
 ================
 
-<div style="display: flex; align-items: center;">
+<img src="logo/ImgOMIClogo.png" alt="ImgOMIC Logo" width="400" align="right"/>
 
-<img src="logo/ImgOMIClogo.png" alt="ImgOMIC Logo" width="400" style="margin-right: 20px;"/>
-<p>
-
-<div style="font-size: 20px;">
-
-<strong>ImgOMIC</strong> is an R package designed to analyze medical
-imaging phenotypes together with OMIC data (genomics, transcriptomics,
-proteomics, etc.). It provides functions for data preprocessing, error
-correction, precision analysis, and longitudinal modeling.
-
-</div>
-
-</p>
-
-</div>
+**ImgOMIC** is an R package designed to analyze medical imaging
+phenotypes together with OMIC data (genomics, transcriptomics,
+proteomics, etc.).  
+It provides functions for data preprocessing, error correction,
+precision analysis, and longitudinal modeling.
 
 ------------------------------------------------------------------------
 
@@ -81,7 +71,7 @@ res_corrected$curves[[1]]
 For detailed explanations, tutorials, and full examples with plots, see
 the package **vignette**:
 
-[Full Documentation and Tutorial](vignettes/documentation.html)
+[Full Documentation and Tutorial](vignettes/documentation.md)
 
 ------------------------------------------------------------------------
 
