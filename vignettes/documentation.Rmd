@@ -3,6 +3,8 @@ title: "ImgOMIC"
 output: github_document
 ---
 
+# ImgOMIC
+
 [EU] R-ko pakete hau nire doktoretzako proiektuan erabiliko ditudan funtzioak gordetzeko sortua da. Proiektu honek irudietatik ateratako ezaugarriak zientzia omikoekin (genomika, trankriptomika, proteomika etab.) aztertzea du helburu, hortik ImgOMIC izena.
 
 [EN] This package was created to compile the necessary functions for analyzing medical imaging phenotypes alongside OMIC data. It provides functions for the complete analysis workflow, from data preprocessing to building associative models.

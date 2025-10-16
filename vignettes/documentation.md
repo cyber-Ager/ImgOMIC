@@ -115,17 +115,6 @@ default, it generates graphical outputs (in the case we don’t wnat them
 
     tb_output <- ImgOMIC::measure_precision(df_test)
 
-    ## 
-    ## Adjuntando el paquete: 'dplyr'
-
-    ## The following objects are masked from 'package:stats':
-    ## 
-    ##     filter, lag
-
-    ## The following objects are masked from 'package:base':
-    ## 
-    ##     intersect, setdiff, setequal, union
-
 ![](documentation_files/figure-markdown_strict/unnamed-chunk-1-1.png)
 These plots display the absolute differences between duplicates for each
 sensor or particle type. They help analyze the distribution of
