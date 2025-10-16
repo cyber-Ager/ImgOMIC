@@ -1,7 +1,7 @@
 ImgOMIC
 ================
 
-<img src="logo/ImgOMIClogo.png" alt="ImgOMIC Logo" width="400" align="right"/>
+<img src="logo/ImgOMIClogo.png" alt="ImgOMIC Logo" width="250" align="right"/>
 
 **ImgOMIC** is an R package designed to analyze medical imaging
 phenotypes together with OMIC data (genomics, transcriptomics,
